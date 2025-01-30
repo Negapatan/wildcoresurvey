@@ -1,0 +1,11 @@
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* Prevents double scrollbars */
+}
+
+.App {
+  height: 100vh;
+}
+
+/* Remove any other unnecessary styles */
