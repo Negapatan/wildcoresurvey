@@ -91,13 +91,51 @@ export const submitCompanySurvey = async (formData) => {
 
 export const submitCompanyEvaluation = async (surveyData) => {
   try {
+    // Convert all ratings to numbers and ensure proper structure
+    const processedData = {
+      ...surveyData,
+      workEnvironment: {
+        ...surveyData.workEnvironment,
+        ratings: Object.entries(surveyData.workEnvironment.ratings).reduce((acc, [key, value]) => {
+          acc[key] = Number(value);
+          return acc;
+        }, {}),
+        totalScore: Number(surveyData.workEnvironment.totalScore)
+      },
+      supportGuidance: {
+        ...surveyData.supportGuidance,
+        ratings: Object.entries(surveyData.supportGuidance.ratings).reduce((acc, [key, value]) => {
+          acc[key] = Number(value);
+          return acc;
+        }, {}),
+        totalScore: Number(surveyData.supportGuidance.totalScore)
+      },
+      workPerformance: {
+        ...surveyData.workPerformance,
+        ratings: Object.entries(surveyData.workPerformance.ratings).reduce((acc, [key, value]) => {
+          acc[key] = Number(value);
+          return acc;
+        }, {}),
+        totalScore: Number(surveyData.workPerformance.totalScore)
+      },
+      overallExperience: {
+        ...surveyData.overallExperience,
+        ratings: Object.entries(surveyData.overallExperience.ratings).reduce((acc, [key, value]) => {
+          acc[key] = Number(value);
+          return acc;
+        }, {}),
+        totalScore: Number(surveyData.overallExperience.totalScore)
+      },
+      totalScore: Number(surveyData.totalScore),
+      maxPossibleScore: Number(surveyData.maxPossibleScore)
+    };
+
     const evaluationsRef = collection(db, 'companyEvaluations');
-    // Remove college from the data before submitting
-    const { college, ...dataWithoutCollege } = surveyData;
     const docRef = await addDoc(evaluationsRef, {
-      ...dataWithoutCollege,
+      ...processedData,
       submittedAt: serverTimestamp()
     });
+    
     console.log('Evaluation submitted successfully with ID:', docRef.id);
     return docRef.id;
   } catch (error) {

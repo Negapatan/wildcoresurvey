@@ -229,7 +229,16 @@ class CompanyEvaluation extends Component {
     try {
       const { formData } = this.state;
 
-      // Prepare the ratings data with exact structure matching Firestore rules
+      // Calculate scores for each section
+      const workEnvironmentTotal = Object.values(this.workEnvironmentRatings)
+        .reduce((sum, rating) => sum + Number(rating), 0);
+      const supportGuidanceTotal = Object.values(this.supportGuidanceRatings)
+        .reduce((sum, rating) => sum + Number(rating), 0);
+      const workPerformanceTotal = Object.values(this.workPerformanceRatings)
+        .reduce((sum, rating) => sum + Number(rating), 0);
+      const overallExperienceTotal = Object.values(this.overallExperienceRatings)
+        .reduce((sum, rating) => sum + Number(rating), 0);
+
       const surveyData = {
         // Basic fields
         surveyType: 'evaluation',
@@ -238,40 +247,42 @@ class CompanyEvaluation extends Component {
         semester: formData.semester,
         program: formData.program,
 
-        // Rating sections with exact structure
+        // Rating sections with numeric values
         workEnvironment: {
-          ratings: this.workEnvironmentRatings,
-          totalScore: Object.values(this.workEnvironmentRatings).reduce((sum, rating) => sum + rating, 0),
+          ratings: Object.entries(this.workEnvironmentRatings)
+            .reduce((acc, [key, value]) => ({ ...acc, [key]: Number(value) }), {}),
+          totalScore: workEnvironmentTotal,
           maxPossibleScore: this.workEnvironmentItems.length * 5
         },
         supportGuidance: {
-          ratings: this.supportGuidanceRatings,
-          totalScore: Object.values(this.supportGuidanceRatings).reduce((sum, rating) => sum + rating, 0),
+          ratings: Object.entries(this.supportGuidanceRatings)
+            .reduce((acc, [key, value]) => ({ ...acc, [key]: Number(value) }), {}),
+          totalScore: supportGuidanceTotal,
           maxPossibleScore: this.supportGuidanceItems.length * 5
         },
         workPerformance: {
-          ratings: this.workPerformanceRatings,
-          totalScore: Object.values(this.workPerformanceRatings).reduce((sum, rating) => sum + rating, 0),
+          ratings: Object.entries(this.workPerformanceRatings)
+            .reduce((acc, [key, value]) => ({ ...acc, [key]: Number(value) }), {}),
+          totalScore: workPerformanceTotal,
           maxPossibleScore: this.workPerformanceItems.length * 5
         },
         overallExperience: {
-          ratings: this.overallExperienceRatings,
-          totalScore: Object.values(this.overallExperienceRatings).reduce((sum, rating) => sum + rating, 0),
+          ratings: Object.entries(this.overallExperienceRatings)
+            .reduce((acc, [key, value]) => ({ ...acc, [key]: Number(value) }), {}),
+          totalScore: overallExperienceTotal,
           maxPossibleScore: this.overallExperienceItems.length * 5
         },
 
         // Overall scores
-        totalScore: Object.values(this.workEnvironmentRatings).reduce((sum, rating) => sum + rating, 0) +
-                   Object.values(this.supportGuidanceRatings).reduce((sum, rating) => sum + rating, 0) +
-                   Object.values(this.workPerformanceRatings).reduce((sum, rating) => sum + rating, 0) +
-                   Object.values(this.overallExperienceRatings).reduce((sum, rating) => sum + rating, 0),
+        totalScore: workEnvironmentTotal + supportGuidanceTotal + 
+                   workPerformanceTotal + overallExperienceTotal,
         maxPossibleScore: (this.workEnvironmentItems.length + 
                           this.supportGuidanceItems.length + 
                           this.workPerformanceItems.length + 
                           this.overallExperienceItems.length) * 5,
 
-        // Required metadata
-        submittedAt: new Date(), // Will be converted to timestamp by service
+        // Metadata
+        submittedAt: new Date(),
         submittedBy: 'anonymous',
         status: 'submitted'
       };
