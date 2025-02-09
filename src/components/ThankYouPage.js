@@ -39,7 +39,8 @@ class ThankYouPage extends Component {
     super(props);
     this.messages = {
       student: "Your feedback has been successfully submitted. Thank you for sharing your experience!",
-      company: "Thank you for providing your valuable feedback about our student's performance!"
+      company: "Thank you for providing your valuable feedback about our student's performance!",
+      evaluation: "Thank you for evaluating your internship experience with the company. Your feedback helps improve our OJT program!"
     };
   }
 
@@ -52,9 +53,7 @@ class ThankYouPage extends Component {
   }
 
   handleReturn = () => {
-    if (this.props.onReturn) {
-      this.props.onReturn();
-    }
+    window.location.href = '/';  // This will redirect to SurveyMain
   }
 
   render() {
@@ -82,8 +81,7 @@ class ThankYouPage extends Component {
 
 // PropTypes for better type checking
 ThankYouPage.propTypes = {
-  surveyType: PropTypes.oneOf(['student', 'company']).isRequired,
-  onReturn: PropTypes.func.isRequired
+  surveyType: PropTypes.oneOf(['student', 'company', 'evaluation']).isRequired
 };
 
 export default ThankYouPage; 

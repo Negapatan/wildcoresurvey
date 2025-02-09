@@ -58,55 +58,50 @@ export const submitStudentSurvey = async (surveyData) => {
   }
 };
 
-export const submitCompanySurvey = async (surveyData) => {
+export const submitCompanySurvey = async (formData) => {
   try {
-    const { 
-      meetingDate,
-      companyName,
-      studentNames,
-      overallPerformance,
-      tasksAssigned,
-      trainingProvided,
-      technicalSkills,
-      recommendations,
-      industryMentor,
-      recommendToStudents,
-      program
-    } = surveyData;
-
-    const docData = {
-      // Basic Information
+    const surveyData = {
       surveyType: 'company',
-      meetingDate,
-      companyName,
-      studentNames,
-      program,
-      
-      // Survey Details
-      overallPerformance: parseInt(overallPerformance) || 0,
-      tasksAssigned,
-      trainingProvided,
-      technicalSkills,
-      recommendations,
-      industryMentor,
-      recommendToStudents,
-
-      // Overall score (only for overall performance)
-      totalScore: parseInt(overallPerformance) || 0,
+      meetingDate: formData.meetingDate,
+      companyName: formData.companyName,
+      studentNames: formData.studentNames,
+      overallPerformance: parseInt(formData.overallPerformance),
+      tasksAssigned: formData.tasksAssigned,
+      trainingProvided: formData.trainingProvided,
+      technicalSkills: formData.technicalSkills,
+      recommendations: formData.recommendations,
+      industryMentor: formData.industryMentor,
+      recommendToStudents: formData.recommendToStudents,
+      program: formData.program,
+      college: formData.college,
+      totalScore: parseInt(formData.overallPerformance),
       maxPossibleScore: 10,
-
-      // Metadata
       submittedAt: serverTimestamp(),
       submittedBy: 'anonymous',
       status: 'submitted'
     };
 
-    const companySurveysRef = collection(db, 'companySurveys');
-    const docRef = await addDoc(companySurveysRef, docData);
-    console.log('Survey submitted successfully with ID:', docRef.id);
-    return docRef.id;
+    // Change the collection name to match your Firestore rules
+    const surveysRef = collection(db, 'OJTadvisers');
+    const docRef = await addDoc(surveysRef, surveyData);
+    return docRef;
   } catch (error) {
     console.error('Error submitting company survey:', error);
+    throw error;
+  }
+};
+
+export const submitCompanyEvaluation = async (surveyData) => {
+  try {
+    const evaluationsRef = collection(db, 'companyEvaluations');
+    const docRef = await addDoc(evaluationsRef, {
+      ...surveyData,
+      submittedAt: serverTimestamp() // Override the Date with serverTimestamp
+    });
+    console.log('Evaluation submitted successfully with ID:', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error submitting company evaluation:', error);
     throw error;
   }
 }; 

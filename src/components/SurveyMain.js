@@ -11,6 +11,7 @@ import {
 import { styled } from '@mui/material/styles';
 import StudentSurvey from './StudentSurvey';
 import CompanySurvey from './CompanySurvey';
+import CompanyEvaluation from './CompanyEvaluation';
 import PrivacyDisclaimer from './PrivacyDisclaimer';
 
 const SurveyCard = styled(Card)(({ theme }) => ({
@@ -97,6 +98,13 @@ class SurveyMain extends Component {
     this.setState({ disclaimerAccepted: true });
   }
 
+  // Add constants for survey types
+  SURVEY_TYPES = {
+    COMPANY_MENTOR: 'student',
+    OJT_ADVISER: 'company',
+    STUDENT: 'evaluation'
+  };
+
   renderSurveyCards() {
     return (
       <Box sx={{ 
@@ -128,14 +136,19 @@ class SurveyMain extends Component {
           mx: 'auto'
         }}>
           {this.renderSurveyCard(
-            'For Company Mentor Survey',
-            'To Evaluate the Students during their internship',
-            'student'
+            'For Company Mentor',
+            'Evaluate student performance during internship',
+            this.SURVEY_TYPES.COMPANY_MENTOR
           )}
           {this.renderSurveyCard(
             'For OJT Advisers',
-            'Assessment Guide to OJT Partners',
-            'company'
+            'Assess and guide OJT partners',
+            this.SURVEY_TYPES.OJT_ADVISER
+          )}
+          {this.renderSurveyCard(
+            'For Students',
+            'Evaluate your internship company',
+            this.SURVEY_TYPES.STUDENT
           )}
         </Box>
       </Box>
@@ -195,126 +208,33 @@ class SurveyMain extends Component {
     );
   }
 
-  renderSurveyContent() {
-    return (
-      <Box sx={{ 
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center'
-      }}>
-        <Typography variant="h4" sx={{ color: '#FFD700', mb: 4, textAlign: 'center' }}>
-          {this.surveyType === 'student' ? 'Student Survey' : 'Company Survey'}
-        </Typography>
-        {this.surveyType === 'student' ? <StudentSurvey /> : <CompanySurvey />}
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <SurveyButton onClick={() => this.surveyType = null}>
-            Back to Survey Selection
-          </SurveyButton>
-        </Box>
-      </Box>
-    );
-  }
-
   render() {
     const { disclaimerAccepted, surveyType } = this.state;
 
     if (!disclaimerAccepted) {
-      return (
-        <Container 
-          maxWidth="md" 
-          sx={{ 
-            py: 3,
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          <PrivacyDisclaimer onAccept={this.handleDisclaimerAccept} />
-        </Container>
-      );
+      return <PrivacyDisclaimer onAccept={this.handleDisclaimerAccept} />;
     }
 
     return (
-      <Container 
-        maxWidth="md" 
-        sx={{ 
-          py: 3,
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-      >
+      <Container maxWidth="md" sx={{ py: 3 }}>
         {!surveyType ? (
-          <Box sx={{ 
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '60vh'
-          }}>
-            <Typography 
-              variant="h3" 
-              component="h1" 
-              gutterBottom
-              sx={{ 
-                color: '#FFD700', 
-                mb: 6,
-                textAlign: 'center',
-                fontWeight: 'bold',
-                fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }
-              }}
-            >
-              Select Survey Type
-            </Typography>
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'center',
-              flexWrap: { xs: 'wrap', md: 'nowrap' },
-              gap: { xs: 4, md: 3 },
-              width: '100%',
-              maxWidth: '900px',
-              mx: 'auto'
-            }}>
-              {this.renderSurveyCard(
-                'For Company Mentor Survey',
-                'To Evaluate the Students during their internship',
-                'student'
-              )}
-              {this.renderSurveyCard(
-                'For OJT Advisers',
-                'Assessment Guide to OJT Partners',
-                'company'
-              )}
-            </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            {this.renderSurveyCards()}
           </Box>
         ) : (
-          <Box sx={{ 
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center'
-          }}>
-            <Typography 
-              variant="h4" 
-              sx={{ 
-                color: '#FFD700', 
-                mb: 4, 
-                textAlign: 'center',
-                fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' }
-              }}
-            >
-              {surveyType === 'student' ? 'Company Mentor Survey' : 'OJT Adviser Assessment'}
-            </Typography>
-            {surveyType === 'student' ? <StudentSurvey /> : <CompanySurvey />}
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-              <SurveyButton onClick={this.handleBack}>
-                Back to Survey Selection
-              </SurveyButton>
-            </Box>
+          <Box>
+            {(surveyType === this.SURVEY_TYPES.COMPANY_MENTOR || 
+              surveyType === this.SURVEY_TYPES.OJT_ADVISER || 
+              surveyType === this.SURVEY_TYPES.STUDENT) && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+                <SurveyButton onClick={this.handleBack}>
+                  Back to Survey Selection
+                </SurveyButton>
+              </Box>
+            )}
+            {surveyType === this.SURVEY_TYPES.COMPANY_MENTOR && <StudentSurvey />}
+            {surveyType === this.SURVEY_TYPES.OJT_ADVISER && <CompanySurvey />}
+            {surveyType === this.SURVEY_TYPES.STUDENT && <CompanyEvaluation />}
           </Box>
         )}
       </Container>

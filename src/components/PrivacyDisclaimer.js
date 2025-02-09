@@ -49,47 +49,60 @@ class PrivacyDisclaimer extends Component {
     const { onAccept } = this.props;
 
     return (
-      <Container elevation={3}>
-        <Typography variant="h4" sx={{ color: '#800000', mb: 3, textAlign: 'center' }}>
-          Data Privacy Notice
-        </Typography>
-        
-        <Typography variant="body1" sx={{ mb: 2, textAlign: 'justify' }}>
-          This survey is conducted for feedback and analytics purposes only. The information you provide will be used to improve our OJT program and enhance the learning experience of our students.
-        </Typography>
-
-        <Typography variant="body1" sx={{ mb: 2, textAlign: 'justify' }}>
-          By participating in this survey, you acknowledge that:
-        </Typography>
-
-        <Box sx={{ mb: 3, pl: 2 }}>
-          <Typography variant="body1" component="ul">
-            <li>Your responses will be stored securely and confidentially</li>
-            <li>The data will be used for academic and program improvement purposes only</li>
-            <li>Your participation is voluntary and valuable to our continuous improvement</li>
-            <li>You can request access to your submitted information at any time</li>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          minHeight: '90vh',
+          textAlign: 'center',
+          p: 3,
+          mt: 12,
+        }}
+      >
+        <Container elevation={3}>
+          <Typography variant="h4" sx={{ color: '#800000', mb: 3, textAlign: 'center' }}>
+            Data Privacy Notice
           </Typography>
-        </Box>
+          
+          <Typography variant="body1" sx={{ mb: 2, textAlign: 'justify' }}>
+            This survey is conducted for feedback and analytics purposes only. The information you provide will be used to improve our OJT program and enhance the learning experience of our students.
+          </Typography>
 
-        <FormControlLabel
-          control={
-            <Checkbox 
-              checked={accepted}
-              onChange={this.handleCheckboxChange}
-              color="primary"
-            />
-          }
-          label="I have read and agree to the data privacy notice"
-        />
+          <Typography variant="body1" sx={{ mb: 2, textAlign: 'justify' }}>
+            By participating in this survey, you acknowledge that:
+          </Typography>
 
-        <AcceptButton
-          variant="contained"
-          disabled={!accepted}
-          onClick={onAccept}
-        >
-          Proceed to Survey
-        </AcceptButton>
-      </Container>
+          <Box sx={{ mb: 3, pl: 2 }}>
+            <Typography variant="body1" component="ul">
+              <li>Your responses will be stored securely and confidentially</li>
+              <li>The data will be used for academic and program improvement purposes only</li>
+              <li>Your participation is voluntary and valuable to our continuous improvement</li>
+              <li>You can request access to your submitted information at any time</li>
+            </Typography>
+          </Box>
+
+          <FormControlLabel
+            control={
+              <Checkbox 
+                checked={accepted}
+                onChange={this.handleCheckboxChange}
+                color="primary"
+              />
+            }
+            label="I have read and agree to the data privacy notice"
+          />
+
+          <AcceptButton
+            variant="contained"
+            disabled={!accepted}
+            onClick={onAccept}
+          >
+            Proceed to Survey
+          </AcceptButton>
+        </Container>
+      </Box>
     );
   }
 }

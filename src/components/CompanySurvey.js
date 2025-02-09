@@ -13,11 +13,12 @@ import {
   FormControlLabel,
   FormControl,
   Rating,
-  Divider
+  Divider,
+  Autocomplete
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { submitCompanySurvey } from '../services/surveyService';
 import ThankYouPage from './ThankYouPage';
+import { submitCompanySurvey } from '../services/surveyService';
 
 const StyledComponents = {
   SurveySection: styled(Paper)(({ theme }) => ({
@@ -47,6 +48,53 @@ const StyledComponents = {
   }))
 };
 
+const collegesAndPrograms = {
+  'COLLEGE OF ENGINEERING AND ARCHITECTURE': [
+    'BS Architecture',
+    'BS Chemical Engineering',
+    'BS Civil Engineering',
+    'BS Computer Engineering',
+    'BS Electrical Engineering',
+    'BS Electronics Engineering',
+    'BS Industrial Engineering',
+    'BS Mechanical Engineering',
+    'BS Mining Engineering'
+  ],
+  'COLLEGE OF MANAGEMENT, BUSINESS & ACCOUNTANCY': [
+    'BS Accountancy',
+    'BS Accounting Information Systems',
+    'BS Management Accounting',
+    'BS Business Administration',
+    'BS Hospitality Management',
+    'BS Tourism Management',
+    'BS Office Administration',
+    'Bachelor in Public Administration'
+  ],
+  'COLLEGE OF ARTS, SCIENCES, & EDUCATION': [
+    'AB Communication',
+    'AB English with Applied Linguistics',
+    'Bachelor of Elementary Education',
+    'Bachelor of Secondary Education',
+    'Bachelor of Multimedia Arts',
+    'BS Biology',
+    'BS Math with Applied Industrial Mathematics',
+    'BS Psychology'
+  ],
+  'COLLEGE OF NURSING & ALLIED HEALTH SCIENCES': [
+    'BS Nursing',
+    'BS Pharmacy'
+  ],
+  'COLLEGE OF COMPUTER STUDIES': [
+    'BS Computer Science',
+    'BS Information Technology'
+  ],
+  'COLLEGE OF CRIMINAL JUSTICE': [
+    'BS Criminology'
+  ]
+};
+
+const colleges = Object.keys(collegesAndPrograms);
+
 class CompanySurvey extends Component {
   constructor(props) {
     super(props);
@@ -61,7 +109,9 @@ class CompanySurvey extends Component {
         technicalSkills: '',
         recommendations: '',
         industryMentor: '',
-        recommendToStudents: ''
+        recommendToStudents: '',
+        program: '',
+        college: ''
       },
       isSubmitting: false,
       isSubmitted: false,
@@ -91,6 +141,16 @@ class CompanySurvey extends Component {
         [name]: value
       }
     }));
+
+    // If the college is changed, reset the program
+    if (name === 'college') {
+      this.setState(prevState => ({
+        formData: {
+          ...prevState.formData,
+          program: '' // Reset the program when college changes
+        }
+      }));
+    }
   }
 
   handleSnackbarClose = () => {
@@ -117,11 +177,13 @@ class CompanySurvey extends Component {
       technicalSkills,
       recommendations,
       industryMentor,
-      recommendToStudents
+      recommendToStudents,
+      program,
+      college
     } = this.formData;
 
     // Check required fields
-    if (!meetingDate || !companyName || !studentNames || !overallPerformance) {
+    if (!meetingDate || !companyName || !studentNames || !overallPerformance || !program || !college) {
       this.showError('Please fill in all required fields');
       return false;
     }
@@ -142,7 +204,7 @@ class CompanySurvey extends Component {
 
     // Check recommendation selection
     if (!recommendToStudents) {
-      this.showError('Please select whether you would recommend this to IT/CS Students');
+      this.showError('Please select whether you would recommend this to other Students');
       return false;
     }
 
@@ -159,14 +221,18 @@ class CompanySurvey extends Component {
     });
   }
 
-  handleSubmit = async () => {
-    if (!this.validateForm()) {
-      return;
-    }
+  handleSubmit = async (e) => {
+    e.preventDefault();
+    this.setState({ isSubmitting: true });
 
     try {
-      this.setState({ isSubmitting: true });
+      if (!this.validateForm()) {
+        return;
+      }
+
       await submitCompanySurvey(this.formData);
+
+      console.log('Survey submitted successfully!');
       this.setState({ isSubmitted: true });
     } catch (error) {
       console.error('Error submitting survey:', error);
@@ -334,9 +400,94 @@ class CompanySurvey extends Component {
 
             <FormDivider />
 
+            <Autocomplete
+              options={colleges}
+              value={this.formData.college}
+              onChange={(event, newValue) => {
+                this.handleFormChange({
+                  target: {
+                    name: 'college',
+                    value: newValue
+                  }
+                });
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="College"
+                  required
+                  variant="outlined"
+                  sx={{
+                    mb: 3,
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'white',
+                      '&:hover fieldset': {
+                        borderColor: '#800000',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#800000',
+                      }
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#666',
+                      '&.Mui-focused': {
+                        color: '#800000'
+                      }
+                    }
+                  }}
+                />
+              )}
+              freeSolo
+              fullWidth
+            />
+
+            <Autocomplete
+              options={collegesAndPrograms[this.formData.college] || []}
+              value={this.formData.program}
+              onChange={(event, newValue) => {
+                this.handleFormChange({
+                  target: {
+                    name: 'program',
+                    value: newValue
+                  }
+                });
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Program"
+                  required
+                  variant="outlined"
+                  sx={{
+                    mb: 3,
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'white',
+                      '&:hover fieldset': {
+                        borderColor: '#800000',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#800000',
+                      }
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: '#666',
+                      '&.Mui-focused': {
+                        color: '#800000'
+                      }
+                    }
+                  }}
+                />
+              )}
+              freeSolo
+              fullWidth
+              disabled={!this.formData.college}
+            />
+
+            <FormDivider />
+
             <FormControl component="fieldset">
               <Typography variant="body1" sx={{ mb: 2, fontWeight: 500, color: '#555' }}>
-                Would you recommend this to IT/CS Students?
+                Would you recommend this to other Students?
               </Typography>
               <RadioGroup
                 name="recommendToStudents"
