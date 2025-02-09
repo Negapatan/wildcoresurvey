@@ -56,7 +56,6 @@ class CompanyEvaluation extends Component {
         companyName: '',
         schoolYear: '',
         semester: '',
-        college: '',
         program: '',
         evaluatorName: ''
       },
@@ -115,50 +114,38 @@ class CompanyEvaluation extends Component {
       `${currentYear}-${currentYear+1}`
     ];
 
-    this.collegesAndPrograms = {
-      'COLLEGE OF ENGINEERING AND ARCHITECTURE': [
-        'BS Architecture',
-        'BS Chemical Engineering',
-        'BS Civil Engineering',
-        'BS Computer Engineering',
-        'BS Electrical Engineering',
-        'BS Electronics Engineering',
-        'BS Industrial Engineering',
-        'BS Mechanical Engineering',
-        'BS Mining Engineering'
-      ],
-      'COLLEGE OF MANAGEMENT, BUSINESS & ACCOUNTANCY': [
-        'BS Accountancy',
-        'BS Accounting Information Systems',
-        'BS Management Accounting',
-        'BS Business Administration',
-        'BS Hospitality Management',
-        'BS Tourism Management',
-        'BS Office Administration',
-        'Bachelor in Public Administration'
-      ],
-      'COLLEGE OF ARTS, SCIENCES, & EDUCATION': [
-        'AB Communication',
-        'AB English with Applied Linguistics',
-        'Bachelor of Elementary Education',
-        'Bachelor of Secondary Education',
-        'Bachelor of Multimedia Arts',
-        'BS Biology',
-        'BS Math with Applied Industrial Mathematics',
-        'BS Psychology'
-      ],
-      'COLLEGE OF NURSING & ALLIED HEALTH SCIENCES': [
-        'BS Nursing',
-        'BS Pharmacy'
-      ],
-      'COLLEGE OF COMPUTER STUDIES': [
-        'BS Computer Science',
-        'BS Information Technology'
-      ],
-      'COLLEGE OF CRIMINAL JUSTICE': [
-        'BS Criminology'
-      ]
-    };
+    this.PROGRAMS = [
+      'BS Architecture',
+      'BS Chemical Engineering',
+      'BS Civil Engineering',
+      'BS Computer Engineering',
+      'BS Electrical Engineering',
+      'BS Electronics Engineering',
+      'BS Industrial Engineering',
+      'BS Mechanical Engineering',
+      'BS Mining Engineering',
+      'BS Accountancy',
+      'BS Accounting Information Systems',
+      'BS Management Accounting',
+      'BS Business Administration',
+      'BS Hospitality Management',
+      'BS Tourism Management',
+      'BS Office Administration',
+      'Bachelor in Public Administration',
+      'AB Communication',
+      'AB English with Applied Linguistics',
+      'Bachelor of Elementary Education',
+      'Bachelor of Secondary Education',
+      'Bachelor of Multimedia Arts',
+      'BS Biology',
+      'BS Math with Applied Industrial Mathematics',
+      'BS Psychology',
+      'BS Nursing',
+      'BS Pharmacy',
+      'BS Computer Science',
+      'BS Information Technology',
+      'BS Criminology'
+    ];
   }
 
   // Getters and Setters
@@ -249,7 +236,6 @@ class CompanyEvaluation extends Component {
         companyName: formData.companyName,
         schoolYear: formData.schoolYear,
         semester: formData.semester,
-        college: formData.college,
         program: formData.program,
 
         // Rating sections with exact structure
@@ -314,21 +300,12 @@ class CompanyEvaluation extends Component {
         [name]: value
       }
     }));
-
-    if (name === 'college') {
-      this.setState(prevState => ({
-        formData: {
-          ...prevState.formData,
-          program: ''
-        }
-      }));
-    }
   }
 
   validateForm() {
-    const { companyName, schoolYear, semester, college, program } = this.state.formData;
+    const { companyName, schoolYear, semester, program } = this.state.formData;
     
-    if (!companyName || !schoolYear || !semester || !college || !program) {
+    if (!companyName || !schoolYear || !semester || !program) {
       this.setState({
         snackbar: {
           open: true,
@@ -504,46 +481,13 @@ class CompanyEvaluation extends Component {
           </Box>
 
           <Autocomplete
-            options={Object.keys(this.collegesAndPrograms)}
-            value={formData.college}
-            onChange={(event, newValue) => {
-              this.handleFormChange({
-                target: { name: 'college', value: newValue }
-              });
-            }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="College"
-                required
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    '&:hover fieldset': {
-                      borderColor: '#800000',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#800000',
-                    }
-                  },
-                  '& .MuiInputLabel-root': {
-                    '&.Mui-focused': {
-                      color: '#800000'
-                    }
-                  }
-                }}
-              />
-            )}
-          />
-
-          <Autocomplete
-            options={this.collegesAndPrograms[formData.college] || []}
+            options={this.PROGRAMS}
             value={formData.program}
             onChange={(event, newValue) => {
               this.handleFormChange({
                 target: { name: 'program', value: newValue }
               });
             }}
-            disabled={!formData.college}
             renderInput={(params) => (
               <TextField
                 {...params}

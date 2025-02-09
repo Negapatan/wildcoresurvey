@@ -73,7 +73,6 @@ export const submitCompanySurvey = async (formData) => {
       industryMentor: formData.industryMentor,
       recommendToStudents: formData.recommendToStudents,
       program: formData.program,
-      college: formData.college,
       totalScore: parseInt(formData.overallPerformance),
       maxPossibleScore: 10,
       submittedAt: serverTimestamp(),
@@ -81,7 +80,6 @@ export const submitCompanySurvey = async (formData) => {
       status: 'submitted'
     };
 
-    // Change the collection name to match your Firestore rules
     const surveysRef = collection(db, 'OJTadvisers');
     const docRef = await addDoc(surveysRef, surveyData);
     return docRef;
@@ -94,9 +92,11 @@ export const submitCompanySurvey = async (formData) => {
 export const submitCompanyEvaluation = async (surveyData) => {
   try {
     const evaluationsRef = collection(db, 'companyEvaluations');
+    // Remove college from the data before submitting
+    const { college, ...dataWithoutCollege } = surveyData;
     const docRef = await addDoc(evaluationsRef, {
-      ...surveyData,
-      submittedAt: serverTimestamp() // Override the Date with serverTimestamp
+      ...dataWithoutCollege,
+      submittedAt: serverTimestamp()
     });
     console.log('Evaluation submitted successfully with ID:', docRef.id);
     return docRef.id;

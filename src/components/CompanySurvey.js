@@ -48,53 +48,6 @@ const StyledComponents = {
   }))
 };
 
-const collegesAndPrograms = {
-  'COLLEGE OF ENGINEERING AND ARCHITECTURE': [
-    'BS Architecture',
-    'BS Chemical Engineering',
-    'BS Civil Engineering',
-    'BS Computer Engineering',
-    'BS Electrical Engineering',
-    'BS Electronics Engineering',
-    'BS Industrial Engineering',
-    'BS Mechanical Engineering',
-    'BS Mining Engineering'
-  ],
-  'COLLEGE OF MANAGEMENT, BUSINESS & ACCOUNTANCY': [
-    'BS Accountancy',
-    'BS Accounting Information Systems',
-    'BS Management Accounting',
-    'BS Business Administration',
-    'BS Hospitality Management',
-    'BS Tourism Management',
-    'BS Office Administration',
-    'Bachelor in Public Administration'
-  ],
-  'COLLEGE OF ARTS, SCIENCES, & EDUCATION': [
-    'AB Communication',
-    'AB English with Applied Linguistics',
-    'Bachelor of Elementary Education',
-    'Bachelor of Secondary Education',
-    'Bachelor of Multimedia Arts',
-    'BS Biology',
-    'BS Math with Applied Industrial Mathematics',
-    'BS Psychology'
-  ],
-  'COLLEGE OF NURSING & ALLIED HEALTH SCIENCES': [
-    'BS Nursing',
-    'BS Pharmacy'
-  ],
-  'COLLEGE OF COMPUTER STUDIES': [
-    'BS Computer Science',
-    'BS Information Technology'
-  ],
-  'COLLEGE OF CRIMINAL JUSTICE': [
-    'BS Criminology'
-  ]
-};
-
-const colleges = Object.keys(collegesAndPrograms);
-
 class CompanySurvey extends Component {
   constructor(props) {
     super(props);
@@ -111,7 +64,6 @@ class CompanySurvey extends Component {
         industryMentor: '',
         recommendToStudents: '',
         program: '',
-        college: ''
       },
       isSubmitting: false,
       isSubmitted: false,
@@ -121,6 +73,39 @@ class CompanySurvey extends Component {
         severity: 'success'
       }
     };
+
+    this.PROGRAMS = [
+      'BS Architecture',
+      'BS Chemical Engineering',
+      'BS Civil Engineering',
+      'BS Computer Engineering',
+      'BS Electrical Engineering',
+      'BS Electronics Engineering',
+      'BS Industrial Engineering',
+      'BS Mechanical Engineering',
+      'BS Mining Engineering',
+      'BS Accountancy',
+      'BS Accounting Information Systems',
+      'BS Management Accounting',
+      'BS Business Administration',
+      'BS Hospitality Management',
+      'BS Tourism Management',
+      'BS Office Administration',
+      'Bachelor in Public Administration',
+      'AB Communication',
+      'AB English with Applied Linguistics',
+      'Bachelor of Elementary Education',
+      'Bachelor of Secondary Education',
+      'Bachelor of Multimedia Arts',
+      'BS Biology',
+      'BS Math with Applied Industrial Mathematics',
+      'BS Psychology',
+      'BS Nursing',
+      'BS Pharmacy',
+      'BS Computer Science',
+      'BS Information Technology',
+      'BS Criminology'
+    ];
   }
 
   // Getters and Setters
@@ -141,16 +126,6 @@ class CompanySurvey extends Component {
         [name]: value
       }
     }));
-
-    // If the college is changed, reset the program
-    if (name === 'college') {
-      this.setState(prevState => ({
-        formData: {
-          ...prevState.formData,
-          program: '' // Reset the program when college changes
-        }
-      }));
-    }
   }
 
   handleSnackbarClose = () => {
@@ -171,19 +146,17 @@ class CompanySurvey extends Component {
       meetingDate,
       companyName,
       studentNames,
+      program,
       overallPerformance,
       tasksAssigned,
       trainingProvided,
       technicalSkills,
       recommendations,
       industryMentor,
-      recommendToStudents,
-      program,
-      college
+      recommendToStudents
     } = this.formData;
 
-    // Check required fields
-    if (!meetingDate || !companyName || !studentNames || !overallPerformance || !program || !college) {
+    if (!meetingDate || !companyName || !studentNames || !program || !overallPerformance || !tasksAssigned || !trainingProvided || !technicalSkills || !recommendations || !industryMentor || !recommendToStudents) {
       this.showError('Please fill in all required fields');
       return false;
     }
@@ -401,48 +374,7 @@ class CompanySurvey extends Component {
             <FormDivider />
 
             <Autocomplete
-              options={colleges}
-              value={this.formData.college}
-              onChange={(event, newValue) => {
-                this.handleFormChange({
-                  target: {
-                    name: 'college',
-                    value: newValue
-                  }
-                });
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="College"
-                  required
-                  variant="outlined"
-                  sx={{
-                    mb: 3,
-                    '& .MuiOutlinedInput-root': {
-                      backgroundColor: 'white',
-                      '&:hover fieldset': {
-                        borderColor: '#800000',
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#800000',
-                      }
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: '#666',
-                      '&.Mui-focused': {
-                        color: '#800000'
-                      }
-                    }
-                  }}
-                />
-              )}
-              freeSolo
-              fullWidth
-            />
-
-            <Autocomplete
-              options={collegesAndPrograms[this.formData.college] || []}
+              options={this.PROGRAMS}
               value={this.formData.program}
               onChange={(event, newValue) => {
                 this.handleFormChange({
@@ -457,11 +389,8 @@ class CompanySurvey extends Component {
                   {...params}
                   label="Program"
                   required
-                  variant="outlined"
                   sx={{
-                    mb: 3,
                     '& .MuiOutlinedInput-root': {
-                      backgroundColor: 'white',
                       '&:hover fieldset': {
                         borderColor: '#800000',
                       },
@@ -470,7 +399,6 @@ class CompanySurvey extends Component {
                       }
                     },
                     '& .MuiInputLabel-root': {
-                      color: '#666',
                       '&.Mui-focused': {
                         color: '#800000'
                       }
@@ -478,9 +406,6 @@ class CompanySurvey extends Component {
                   }}
                 />
               )}
-              freeSolo
-              fullWidth
-              disabled={!this.formData.college}
             />
 
             <FormDivider />
