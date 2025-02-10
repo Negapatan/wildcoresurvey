@@ -91,50 +91,104 @@ export const submitCompanySurvey = async (formData) => {
 
 export const submitCompanyEvaluation = async (surveyData) => {
   try {
-    // Convert all ratings to numbers and ensure proper structure
-    const processedData = {
-      ...surveyData,
+    console.log('Submitting data:', surveyData);
+
+    // Ensure studentName is present
+    if (!surveyData.studentName) {
+      throw new Error('Student Name is required');
+    }
+
+    const evaluationData = {
+      // Basic Information (required by rules)
+      companyName: surveyData.companyName,
+      studentName: surveyData.studentName,
+      program: surveyData.program,
+      schoolYear: surveyData.schoolYear,
+      semester: surveyData.semester,
+
+      // Work Environment
       workEnvironment: {
-        ...surveyData.workEnvironment,
-        ratings: Object.entries(surveyData.workEnvironment.ratings).reduce((acc, [key, value]) => {
-          acc[key] = Number(value);
-          return acc;
-        }, {}),
-        totalScore: Number(surveyData.workEnvironment.totalScore)
+        workstation: Number(surveyData.workstation || 0),
+        resources: Number(surveyData.resources || 0),
+        safety: Number(surveyData.safety || 0),
+        workload: Number(surveyData.workload || 0),
+        totalScore: 0,
+        maxPossibleScore: 20
       },
-      supportGuidance: {
-        ...surveyData.supportGuidance,
-        ratings: Object.entries(surveyData.supportGuidance.ratings).reduce((acc, [key, value]) => {
-          acc[key] = Number(value);
-          return acc;
-        }, {}),
-        totalScore: Number(surveyData.supportGuidance.totalScore)
+
+      // Performance Support
+      performanceSupport: {
+        supervision: Number(surveyData.supervision || 0),
+        feedback: Number(surveyData.feedback || 0),
+        training: Number(surveyData.training || 0),
+        mentorship: Number(surveyData.mentorship || 0),
+        totalScore: 0,
+        maxPossibleScore: 20
       },
-      workPerformance: {
-        ...surveyData.workPerformance,
-        ratings: Object.entries(surveyData.workPerformance.ratings).reduce((acc, [key, value]) => {
-          acc[key] = Number(value);
-          return acc;
-        }, {}),
-        totalScore: Number(surveyData.workPerformance.totalScore)
+
+      // Experience Quality
+      experienceQuality: {
+        relevance: Number(surveyData.relevance || 0),
+        skills: Number(surveyData.skills || 0),
+        growth: Number(surveyData.growth || 0),
+        satisfaction: Number(surveyData.satisfaction || 0),
+        totalScore: 0,
+        maxPossibleScore: 20
       },
-      overallExperience: {
-        ...surveyData.overallExperience,
-        ratings: Object.entries(surveyData.overallExperience.ratings).reduce((acc, [key, value]) => {
-          acc[key] = Number(value);
-          return acc;
-        }, {}),
-        totalScore: Number(surveyData.overallExperience.totalScore)
+
+      // Overall Metrics
+      overall: {
+        totalScore: 0,
+        maxPossibleScore: 60,
+        averageRating: '0'
       },
-      totalScore: Number(surveyData.totalScore),
-      maxPossibleScore: Number(surveyData.maxPossibleScore)
+
+      // Metadata
+      submittedAt: serverTimestamp(),
+      status: 'submitted'
     };
 
+    // Calculate individual section scores using calculateCategoryScore
+    evaluationData.workEnvironment.totalScore = calculateCategoryScore([
+      evaluationData.workEnvironment.workstation,
+      evaluationData.workEnvironment.resources,
+      evaluationData.workEnvironment.safety,
+      evaluationData.workEnvironment.workload
+    ]);
+
+    evaluationData.performanceSupport.totalScore = calculateCategoryScore([
+      evaluationData.performanceSupport.supervision,
+      evaluationData.performanceSupport.feedback,
+      evaluationData.performanceSupport.training,
+      evaluationData.performanceSupport.mentorship
+    ]);
+
+    evaluationData.experienceQuality.totalScore = calculateCategoryScore([
+      evaluationData.experienceQuality.relevance,
+      evaluationData.experienceQuality.skills,
+      evaluationData.experienceQuality.growth,
+      evaluationData.experienceQuality.satisfaction
+    ]);
+
+    // Calculate overall total
+    evaluationData.overall.totalScore = 
+      evaluationData.workEnvironment.totalScore +
+      evaluationData.performanceSupport.totalScore +
+      evaluationData.experienceQuality.totalScore;
+
+    evaluationData.overall.averageRating = 
+      (evaluationData.overall.totalScore / 12).toFixed(2);
+
+    // Final validation before submission
+    const requiredFields = ['companyName', 'studentName', 'program', 'schoolYear', 'semester'];
+    const missingFields = requiredFields.filter(field => !surveyData[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    }
+
     const evaluationsRef = collection(db, 'companyEvaluations');
-    const docRef = await addDoc(evaluationsRef, {
-      ...processedData,
-      submittedAt: serverTimestamp()
-    });
+    const docRef = await addDoc(evaluationsRef, evaluationData);
     
     console.log('Evaluation submitted successfully with ID:', docRef.id);
     return docRef.id;
@@ -142,4 +196,9 @@ export const submitCompanyEvaluation = async (surveyData) => {
     console.error('Error submitting company evaluation:', error);
     throw error;
   }
+};
+
+// Helper function for calculating category scores
+const calculateCategoryScore = (ratings) => {
+  return ratings.reduce((sum, rating) => sum + (Number(rating) || 0), 0);
 }; 

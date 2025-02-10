@@ -54,6 +54,7 @@ class CompanyEvaluation extends Component {
     this.state = {
       formData: {
         companyName: '',
+        studentName: '',
         schoolYear: '',
         semester: '',
         program: '',
@@ -220,71 +221,33 @@ class CompanyEvaluation extends Component {
   }
 
   handleSubmit = async () => {
-    if (!this.validateForm()) {
-      return;
-    }
+    if (!this.validateForm()) return;
 
     this.setState({ isSubmitting: true });
 
     try {
-      const { formData } = this.state;
-
-      // Calculate scores for each section
-      const workEnvironmentTotal = Object.values(this.workEnvironmentRatings)
-        .reduce((sum, rating) => sum + Number(rating), 0);
-      const supportGuidanceTotal = Object.values(this.supportGuidanceRatings)
-        .reduce((sum, rating) => sum + Number(rating), 0);
-      const workPerformanceTotal = Object.values(this.workPerformanceRatings)
-        .reduce((sum, rating) => sum + Number(rating), 0);
-      const overallExperienceTotal = Object.values(this.overallExperienceRatings)
-        .reduce((sum, rating) => sum + Number(rating), 0);
-
       const surveyData = {
-        // Basic fields
-        surveyType: 'evaluation',
-        companyName: formData.companyName,
-        schoolYear: formData.schoolYear,
-        semester: formData.semester,
-        program: formData.program,
-
-        // Rating sections with numeric values
-        workEnvironment: {
-          ratings: Object.entries(this.workEnvironmentRatings)
-            .reduce((acc, [key, value]) => ({ ...acc, [key]: Number(value) }), {}),
-          totalScore: workEnvironmentTotal,
-          maxPossibleScore: this.workEnvironmentItems.length * 5
-        },
-        supportGuidance: {
-          ratings: Object.entries(this.supportGuidanceRatings)
-            .reduce((acc, [key, value]) => ({ ...acc, [key]: Number(value) }), {}),
-          totalScore: supportGuidanceTotal,
-          maxPossibleScore: this.supportGuidanceItems.length * 5
-        },
-        workPerformance: {
-          ratings: Object.entries(this.workPerformanceRatings)
-            .reduce((acc, [key, value]) => ({ ...acc, [key]: Number(value) }), {}),
-          totalScore: workPerformanceTotal,
-          maxPossibleScore: this.workPerformanceItems.length * 5
-        },
-        overallExperience: {
-          ratings: Object.entries(this.overallExperienceRatings)
-            .reduce((acc, [key, value]) => ({ ...acc, [key]: Number(value) }), {}),
-          totalScore: overallExperienceTotal,
-          maxPossibleScore: this.overallExperienceItems.length * 5
-        },
-
-        // Overall scores
-        totalScore: workEnvironmentTotal + supportGuidanceTotal + 
-                   workPerformanceTotal + overallExperienceTotal,
-        maxPossibleScore: (this.workEnvironmentItems.length + 
-                          this.supportGuidanceItems.length + 
-                          this.workPerformanceItems.length + 
-                          this.overallExperienceItems.length) * 5,
-
-        // Metadata
-        submittedAt: new Date(),
-        submittedBy: 'anonymous',
-        status: 'submitted'
+        companyName: this.state.formData.companyName,
+        studentName: this.state.formData.studentName,
+        program: this.state.formData.program,
+        schoolYear: this.state.formData.schoolYear,
+        semester: this.state.formData.semester,
+        
+        // Map the ratings to the expected structure
+        workstation: this.getAverageRating(this.workEnvironmentRatings),
+        resources: this.getAverageRating(this.supportGuidanceRatings),
+        safety: this.getAverageRating(this.workPerformanceRatings),
+        workload: this.getAverageRating(this.overallExperienceRatings),
+        
+        supervision: this.getAverageRating(this.workEnvironmentRatings),
+        feedback: this.getAverageRating(this.supportGuidanceRatings),
+        training: this.getAverageRating(this.workPerformanceRatings),
+        mentorship: this.getAverageRating(this.overallExperienceRatings),
+        
+        relevance: this.getAverageRating(this.workEnvironmentRatings),
+        skills: this.getAverageRating(this.supportGuidanceRatings),
+        growth: this.getAverageRating(this.workPerformanceRatings),
+        satisfaction: this.getAverageRating(this.overallExperienceRatings),
       };
 
       await submitCompanyEvaluation(surveyData);
@@ -294,7 +257,7 @@ class CompanyEvaluation extends Component {
       this.setState({
         snackbar: {
           open: true,
-          message: 'Error submitting evaluation. Please try again.',
+          message: error.message || 'Error submitting evaluation. Please try again.',
           severity: 'error'
         }
       });
@@ -314,9 +277,9 @@ class CompanyEvaluation extends Component {
   }
 
   validateForm() {
-    const { companyName, schoolYear, semester, program } = this.state.formData;
+    const { companyName, studentName, schoolYear, semester, program } = this.state.formData;
     
-    if (!companyName || !schoolYear || !semester || !program) {
+    if (!companyName || !studentName || !schoolYear || !semester || !program) {
       this.setState({
         snackbar: {
           open: true,
@@ -347,6 +310,12 @@ class CompanyEvaluation extends Component {
       }
     }
     return true;
+  }
+
+  getAverageRating = (ratings) => {
+    const values = Object.values(ratings);
+    if (values.length === 0) return 0;
+    return values.reduce((sum, val) => sum + (val || 0), 0) / values.length;
   }
 
   renderRatingSection(title, items, ratings, handleRatingChange) {
@@ -399,6 +368,30 @@ class CompanyEvaluation extends Component {
             label="Name of Company"
             name="companyName"
             value={formData.companyName}
+            onChange={this.handleFormChange}
+            required
+            fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': {
+                  borderColor: '#800000',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#800000',
+                }
+              },
+              '& .MuiInputLabel-root': {
+                '&.Mui-focused': {
+                  color: '#800000'
+                }
+              }
+            }}
+          />
+
+          <TextField
+            label="Student Name"
+            name="studentName"
+            value={formData.studentName}
             onChange={this.handleFormChange}
             required
             fullWidth
