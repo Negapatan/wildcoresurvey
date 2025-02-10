@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
-import { Box, Typography, Button } from '@mui/material';
+import { Box, Typography, Button, Fade, Grow, Paper } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import PropTypes from 'prop-types';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 const StyledComponents = {
   ThankYouButton: styled(Button)(({ theme }) => ({
@@ -9,28 +10,81 @@ const StyledComponents = {
     color: '#FFD700',
     '&:hover': {
       backgroundColor: '#600000',
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 12px rgba(128, 0, 0, 0.2)',
     },
-    padding: theme.spacing(1, 4),
+    padding: theme.spacing(1.5, 6),
     marginTop: theme.spacing(4),
+    borderRadius: '8px',
+    transition: 'all 0.3s ease',
+    fontSize: '1.1rem',
+    fontWeight: 600,
+    width: '280px',
   })),
 
-  Container: styled(Box)({
+  Container: styled(Box)(({ theme }) => ({
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    textAlign: 'center',
-    padding: '32px',
-  }),
+    justifyContent: 'center',
+    minHeight: 'calc(100vh - 200px)', // Account for AppBar and padding
+    padding: theme.spacing(4),
+    margin: '0 auto',
+    width: '100%',
+    maxWidth: '800px',
+  })),
+
+  ContentWrapper: styled(Paper)(({ theme }) => ({
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backdropFilter: 'blur(10px)',
+    padding: theme.spacing(6, 4),
+    borderRadius: '16px',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+  })),
+
+  IconWrapper: styled(Box)(({ theme }) => ({
+    marginBottom: theme.spacing(3),
+    display: 'flex',
+    justifyContent: 'center',
+    width: '100%',
+  })),
 
   Title: styled(Typography)(({ theme }) => ({
     color: '#FFD700',
     marginBottom: theme.spacing(3),
     fontWeight: 'bold',
+    fontSize: '2.2rem',
+    textAlign: 'center',
+    [theme.breakpoints.down('sm')]: {
+      fontSize: '1.8rem',
+    },
   })),
 
   Message: styled(Typography)(({ theme }) => ({
     color: '#FFD700',
-    marginBottom: theme.spacing(4),
+    marginBottom: theme.spacing(2),
+    fontSize: '1.1rem',
+    lineHeight: 1.6,
+    textAlign: 'center',
+    maxWidth: '600px',
+    [theme.breakpoints.down('sm')]: {
+      fontSize: '1rem',
+    },
+  })),
+
+  SubMessage: styled(Typography)(({ theme }) => ({
+    color: 'rgba(255, 215, 0, 0.8)',
+    marginBottom: theme.spacing(2),
+    fontSize: '0.95rem',
+    textAlign: 'center',
+    maxWidth: '550px',
+    [theme.breakpoints.down('sm')]: {
+      fontSize: '0.9rem',
+    },
   }))
 };
 
@@ -38,9 +92,21 @@ class ThankYouPage extends Component {
   constructor(props) {
     super(props);
     this.messages = {
-      student: "Your feedback has been successfully submitted. Thank you for sharing your experience!",
-      company: "Thank you for providing your valuable feedback about our student's performance!",
-      evaluation: "Thank you for evaluating your internship experience with the company. Your feedback helps improve our OJT program!"
+      student: {
+        title: "Thank You for Your Valuable Feedback!",
+        message: "Your assessment of the student's performance is crucial for their growth and development. Your insights will help shape their professional journey.",
+        subMessage: "Your contribution helps us maintain high standards in our OJT program and ensures our students receive quality training experiences."
+      },
+      company: {
+        title: "Thank You for Your Partnership!",
+        message: "Your feedback about our OJT program and students is invaluable. It helps us strengthen our educational partnerships and improve our training programs.",
+        subMessage: "Together, we're building better opportunities for future professionals."
+      },
+      evaluation: {
+        title: "Thank You for Sharing Your Experience!",
+        message: "Your honest feedback about your internship experience helps us ensure quality partnerships with companies and better opportunities for future students.",
+        subMessage: "Your insights will help us enhance the OJT program and create more meaningful internship experiences."
+      }
     };
   }
 
@@ -53,27 +119,52 @@ class ThankYouPage extends Component {
   }
 
   handleReturn = () => {
-    window.location.href = '/';  // This will redirect to SurveyMain
+    window.history.back();
   }
 
   render() {
-    const { ThankYouButton, Container, Title, Message } = StyledComponents;
+    const { ThankYouButton, Container, ContentWrapper, IconWrapper, Title, Message, SubMessage } = StyledComponents;
+    const messageContent = this.message;
 
     return (
       <Container>
-        <Title variant="h4">
-          Thank You!
-        </Title>
-        <Message variant="h6">
-          {this.message}
-        </Message>
-        <ThankYouButton 
-          variant="contained"
-          size="large"
-          onClick={this.handleReturn}
-        >
-          Return to Homepage
-        </ThankYouButton>
+        <ContentWrapper>
+          <Grow in timeout={500}>
+            <IconWrapper>
+              <CheckCircleIcon 
+                sx={{ 
+                  fontSize: 90, 
+                  color: '#FFD700', 
+                  filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.3))'
+                }} 
+              />
+            </IconWrapper>
+          </Grow>
+
+          <Fade in timeout={800}>
+            <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Title variant="h3">
+                {messageContent.title}
+              </Title>
+
+              <Message variant="h6">
+                {messageContent.message}
+              </Message>
+
+              <SubMessage variant="body1">
+                {messageContent.subMessage}
+              </SubMessage>
+
+              <ThankYouButton 
+                variant="contained"
+                size="large"
+                onClick={this.handleReturn}
+              >
+                Return to Survey Selection
+              </ThankYouButton>
+            </Box>
+          </Fade>
+        </ContentWrapper>
       </Container>
     );
   }

@@ -194,8 +194,8 @@ class StudentSurvey extends Component {
     }));
   }
 
-  handleReturn = () => {
-    window.location.reload();
+  handleBack = () => {
+    window.history.back();
   }
 
   validateForm() {
@@ -404,7 +404,7 @@ class StudentSurvey extends Component {
     const { isSubmitting, isSubmitted, snackbar } = this.state;
 
     if (isSubmitted) {
-      return <ThankYouPage onReturn={this.handleReturn} surveyType="student" />;
+      return <ThankYouPage onReturn={this.handleBack} surveyType="student" />;
     }
 
     return (
@@ -433,7 +433,7 @@ class StudentSurvey extends Component {
           this.handleWorkPerformanceRatingChange
         )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, width: '100%', maxWidth: 600 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 4, mb: 6 }}>
           <SubmitButton
             variant="contained"
             size="large"
@@ -442,6 +442,25 @@ class StudentSurvey extends Component {
           >
             {isSubmitting ? 'Submitting...' : 'Submit Survey'}
           </SubmitButton>
+          
+          <Button
+            variant="contained"
+            size="large"
+            onClick={this.handleBack}
+            sx={{
+              backgroundColor: '#600000',
+              color: '#FFD700',
+              '&:hover': {
+                backgroundColor: '#400000',
+              },
+              '&:disabled': {
+                backgroundColor: '#800000',
+                opacity: 0.7,
+              }
+            }}
+          >
+            Back to Survey Selection
+          </Button>
         </Box>
 
         <Snackbar

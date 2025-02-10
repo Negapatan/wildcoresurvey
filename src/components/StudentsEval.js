@@ -18,6 +18,7 @@ import {
 import { styled } from '@mui/material/styles';
 import { submitCompanyEvaluation } from '../services/surveyService';
 import ThankYouPage from './ThankYouPage';
+import InfoIcon from '@mui/icons-material/Info';
 
 const StyledComponents = {
   SurveySection: styled(Paper)(({ theme }) => ({
@@ -318,6 +319,11 @@ class CompanyEvaluation extends Component {
     return values.reduce((sum, val) => sum + (val || 0), 0) / values.length;
   }
 
+  handleBack = () => {
+    // Use the browser's history to go back to the survey selector
+    window.history.back();
+  }
+
   renderRatingSection(title, items, ratings, handleRatingChange) {
     const { SurveySection, RatingContainer } = StyledComponents;
     return (
@@ -358,12 +364,40 @@ class CompanyEvaluation extends Component {
     ];
 
     return (
-      <SurveySection elevation={3}>
-        <Typography variant="h5" sx={{ color: '#800000', mb: 3, textAlign: 'center' }}>
+      <SurveySection>
+        <Typography variant="h5" sx={{ color: '#800000', mb: 2, textAlign: 'center' }}>
           Basic Information
         </Typography>
         
-        <Stack spacing={3} sx={{ px: 2 }}>
+        <Box
+          sx={{
+            backgroundColor: 'rgba(128, 0, 0, 0.05)',
+            borderRadius: '8px',
+            p: 2,
+            mb: 4,
+            border: '1px solid rgba(128, 0, 0, 0.2)',
+          }}
+        >
+          <Typography 
+            variant="subtitle2" 
+            sx={{ 
+              color: '#800000',
+              textAlign: 'center',
+              fontStyle: 'italic',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 1,
+              fontWeight: 500
+            }}
+          >
+            <InfoIcon sx={{ fontSize: 20 }} />
+            Important: You can only submit one evaluation per internship.
+            Please ensure all information is accurate before submitting.
+          </Typography>
+        </Box>
+
+        <Stack spacing={3} sx={{ width: '100%' }}>
           <TextField
             label="Name of Company"
             name="companyName"
@@ -567,7 +601,7 @@ class CompanyEvaluation extends Component {
           this.handleOverallExperienceRatingChange
         )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, width: '100%', maxWidth: 600 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 4, mb: 6 }}>
           <SubmitButton
             variant="contained"
             size="large"
@@ -576,6 +610,25 @@ class CompanyEvaluation extends Component {
           >
             {isSubmitting ? 'Submitting...' : 'Submit Evaluation'}
           </SubmitButton>
+
+          <Button
+            variant="contained"
+            size="large"
+            onClick={this.handleBack}
+            sx={{
+              backgroundColor: '#600000',
+              color: '#FFD700',
+              '&:hover': {
+                backgroundColor: '#400000',
+              },
+              '&:disabled': {
+                backgroundColor: '#800000',
+                opacity: 0.7,
+              }
+            }}
+          >
+            Back to Survey Selection
+          </Button>
         </Box>
 
         <Snackbar

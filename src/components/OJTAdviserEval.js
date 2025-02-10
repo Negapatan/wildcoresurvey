@@ -141,6 +141,10 @@ class CompanySurvey extends Component {
     window.location.reload();
   }
 
+  handleBack = () => {
+    window.history.back();
+  }
+
   validateForm() {
     const { 
       meetingDate,
@@ -449,7 +453,7 @@ class CompanySurvey extends Component {
           </Stack>
         </SurveySection>
 
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 6 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 4, mb: 6 }}>
           <SubmitButton
             variant="contained"
             size="large"
@@ -458,6 +462,25 @@ class CompanySurvey extends Component {
           >
             {isSubmitting ? 'Submitting...' : 'Submit Survey'}
           </SubmitButton>
+
+          <Button
+            variant="contained"
+            size="large"
+            onClick={this.handleBack}
+            sx={{
+              backgroundColor: '#600000',
+              color: '#FFD700',
+              '&:hover': {
+                backgroundColor: '#400000',
+              },
+              '&:disabled': {
+                backgroundColor: '#800000',
+                opacity: 0.7,
+              }
+            }}
+          >
+            Back to Survey Selection
+          </Button>
         </Box>
 
         <Snackbar

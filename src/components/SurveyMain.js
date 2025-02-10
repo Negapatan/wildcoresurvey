@@ -9,9 +9,9 @@ import {
   CardActions
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import StudentSurvey from './StudentSurvey';
-import CompanySurvey from './CompanySurvey';
-import CompanyEvaluation from './CompanyEvaluation';
+import CompanyMentorEval from './CompanyMentorEval';
+import OJTAdviserEval from './OJTAdviserEval';
+import StudentsEval from './StudentsEval';
 import PrivacyDisclaimer from './PrivacyDisclaimer';
 
 const SurveyCard = styled(Card)(({ theme }) => ({
@@ -223,18 +223,9 @@ class SurveyMain extends Component {
           </Box>
         ) : (
           <Box>
-            {(surveyType === this.SURVEY_TYPES.COMPANY_MENTOR || 
-              surveyType === this.SURVEY_TYPES.OJT_ADVISER || 
-              surveyType === this.SURVEY_TYPES.STUDENT) && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-                <SurveyButton onClick={this.handleBack}>
-                  Back to Survey Selection
-                </SurveyButton>
-              </Box>
-            )}
-            {surveyType === this.SURVEY_TYPES.COMPANY_MENTOR && <StudentSurvey />}
-            {surveyType === this.SURVEY_TYPES.OJT_ADVISER && <CompanySurvey />}
-            {surveyType === this.SURVEY_TYPES.STUDENT && <CompanyEvaluation />}
+            {surveyType === this.SURVEY_TYPES.COMPANY_MENTOR && <CompanyMentorEval />}
+            {surveyType === this.SURVEY_TYPES.OJT_ADVISER && <OJTAdviserEval />}
+            {surveyType === this.SURVEY_TYPES.STUDENT && <StudentsEval />}
           </Box>
         )}
       </Container>
