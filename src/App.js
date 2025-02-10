@@ -30,7 +30,7 @@ const LogoImg = styled('img')(({ theme }) => ({
     transform: 'scale(1.05)',
   },
   [theme.breakpoints.down('sm')]: {
-    height: '40px',
+    height: '35px',
   },
 }));
 
@@ -101,7 +101,8 @@ const NavText = styled(Typography)(({ theme }) => ({
     opacity: 1,
   },
   [theme.breakpoints.down('sm')]: {
-    fontSize: '0.9rem',
+    fontSize: '0.85rem',
+    display: 'none'
   },
 }));
 

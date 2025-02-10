@@ -27,11 +27,15 @@ const StyledComponents = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 'calc(100vh - 200px)', // Account for AppBar and padding
+    minHeight: 'calc(100vh - 200px)',
     padding: theme.spacing(4),
     margin: '0 auto',
     width: '100%',
     maxWidth: '800px',
+    [theme.breakpoints.down('sm')]: {
+      padding: theme.spacing(2),
+      minHeight: 'calc(100vh - 150px)',
+    },
   })),
 
   ContentWrapper: styled(Paper)(({ theme }) => ({
@@ -44,6 +48,10 @@ const StyledComponents = {
     flexDirection: 'column',
     alignItems: 'center',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+    [theme.breakpoints.down('sm')]: {
+      padding: theme.spacing(4, 2),
+      borderRadius: '12px',
+    },
   })),
 
   IconWrapper: styled(Box)(({ theme }) => ({
@@ -60,7 +68,8 @@ const StyledComponents = {
     fontSize: '2.2rem',
     textAlign: 'center',
     [theme.breakpoints.down('sm')]: {
-      fontSize: '1.8rem',
+      fontSize: '1.5rem',
+      marginBottom: theme.spacing(2),
     },
   })),
 
@@ -72,7 +81,9 @@ const StyledComponents = {
     textAlign: 'center',
     maxWidth: '600px',
     [theme.breakpoints.down('sm')]: {
-      fontSize: '1rem',
+      fontSize: '0.95rem',
+      lineHeight: 1.5,
+      marginBottom: theme.spacing(1.5),
     },
   })),
 

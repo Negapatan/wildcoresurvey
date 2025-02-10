@@ -22,9 +22,15 @@ const SurveyCard = styled(Card)(({ theme }) => ({
   flexDirection: 'column',
   justifyContent: 'space-between',
   transition: 'transform 0.3s ease-in-out',
-  margin: '0 16px',
+  margin: '16px',
   '&:hover': {
     transform: 'scale(1.02)',
+  },
+  [theme.breakpoints.down('sm')]: {
+    width: '100%',
+    height: 'auto',
+    minHeight: '220px',
+    margin: '8px 0',
   },
 }));
 
@@ -112,6 +118,7 @@ class SurveyMain extends Component {
         flexDirection: 'column', 
         alignItems: 'center',
         width: '100%',
+        px: { xs: 2, sm: 3 }
       }}>
         <Typography 
           variant="h4" 
@@ -119,18 +126,20 @@ class SurveyMain extends Component {
           gutterBottom
           sx={{ 
             color: '#FFD700', 
-            mb: 6,
+            mb: { xs: 3, sm: 6 },
             textAlign: 'center',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            fontSize: { xs: '1.75rem', sm: '2.125rem' }
           }}
         >
           Select Survey Type
         </Typography>
         <Box sx={{ 
           display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' },
           justifyContent: 'center',
-          flexWrap: { xs: 'wrap', md: 'nowrap' },
-          gap: { xs: 4, md: 3 },
+          alignItems: 'center',
+          gap: { xs: 2, md: 3 },
           width: '100%',
           maxWidth: '900px',
           mx: 'auto'

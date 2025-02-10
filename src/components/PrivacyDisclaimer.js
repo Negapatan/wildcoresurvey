@@ -27,6 +27,11 @@ const StyledComponents = {
     alignItems: 'center',
     borderRadius: '12px',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+    [theme.breakpoints.down('sm')]: {
+      padding: theme.spacing(2),
+      margin: theme.spacing(2),
+      borderRadius: '8px',
+    },
   })),
 
   Section: styled(Box)(({ theme }) => ({
@@ -37,6 +42,10 @@ const StyledComponents = {
     transition: 'all 0.3s ease',
     '&:hover': {
       backgroundColor: 'rgba(128, 0, 0, 0.02)',
+    },
+    [theme.breakpoints.down('sm')]: {
+      marginBottom: theme.spacing(2),
+      padding: theme.spacing(1),
     },
   })),
 
@@ -100,7 +109,10 @@ class PrivacyDisclaimer extends Component {
     const { onAccept } = this.props;
 
     return (
-      <MuiContainer maxWidth="lg" sx={{ py: 3 }}>
+      <MuiContainer maxWidth="lg" sx={{ 
+        py: { xs: 2, sm: 3 },
+        px: { xs: 1, sm: 2 }
+      }}>
         <Box sx={{
           display: 'flex',
           flexDirection: 'column',
