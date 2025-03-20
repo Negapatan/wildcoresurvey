@@ -16,9 +16,11 @@ import {
   Autocomplete
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { submitCompanyEvaluation } from '../services/surveyService';
+import { submitStudentSurvey } from '../services/surveyService';
 import ThankYouPage from './ThankYouPage';
 import InfoIcon from '@mui/icons-material/Info';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../firebase-config';
 
 const StyledComponents = {
   SurveySection: styled(Paper)(({ theme }) => ({
@@ -56,6 +58,7 @@ class CompanyEvaluation extends Component {
       formData: {
         companyName: '',
         studentName: '',
+        studentId: '',
         schoolYear: '',
         semester: '',
         program: '',
@@ -221,8 +224,64 @@ class CompanyEvaluation extends Component {
     }));
   }
 
+  validateStudentId = async (studentId) => {
+    try {
+      // Check both collections for existing student ID
+      const studentSurveysRef = collection(db, 'studentSurveys');
+      const companyEvalsRef = collection(db, 'companyEvaluations');
+      
+      // Check studentSurveys collection
+      const studentSurveysQuery = query(studentSurveysRef, where('studentId', '==', studentId));
+      const studentSurveysSnapshot = await getDocs(studentSurveysQuery);
+      
+      // Check companyEvaluations collection
+      const companyEvalsQuery = query(companyEvalsRef, where('studentId', '==', studentId));
+      const companyEvalsSnapshot = await getDocs(companyEvalsQuery);
+      
+      if (!studentSurveysSnapshot.empty || !companyEvalsSnapshot.empty) {
+        this.setState({
+          snackbar: {
+            open: true,
+            message: 'This Student ID already exists in the system. Each student can only submit one evaluation.',
+            severity: 'error'
+          }
+        });
+        return false;
+      }
+      
+      // ID format validation (XX-XXXX-XXX)
+      const idRegex = /^\d{2}-\d{4}-\d{3}$/;
+      if (!idRegex.test(studentId)) {
+        this.setState({
+          snackbar: {
+            open: true,
+            message: 'Please enter a valid Student ID in the format: XX-XXXX-XXX (e.g., 21-2792-200)',
+            severity: 'error'
+          }
+        });
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error validating student ID:', error);
+      this.setState({
+        snackbar: {
+          open: true,
+          message: 'Error validating Student ID. Please try again.',
+          severity: 'error'
+        }
+      });
+      return false;
+    }
+  }
+
   handleSubmit = async () => {
     if (!this.validateForm()) return;
+
+    const { studentId } = this.state.formData;
+    const isValidId = await this.validateStudentId(studentId);
+    if (!isValidId) return;
 
     this.setState({ isSubmitting: true });
 
@@ -230,35 +289,22 @@ class CompanyEvaluation extends Component {
       const surveyData = {
         companyName: this.state.formData.companyName,
         studentName: this.state.formData.studentName,
+        studentId: this.state.formData.studentId,
         program: this.state.formData.program,
         schoolYear: this.state.formData.schoolYear,
         semester: this.state.formData.semester,
-        
-        // Map the ratings to the expected structure
-        workstation: this.getAverageRating(this.workEnvironmentRatings),
-        resources: this.getAverageRating(this.supportGuidanceRatings),
-        safety: this.getAverageRating(this.workPerformanceRatings),
-        workload: this.getAverageRating(this.overallExperienceRatings),
-        
-        supervision: this.getAverageRating(this.workEnvironmentRatings),
-        feedback: this.getAverageRating(this.supportGuidanceRatings),
-        training: this.getAverageRating(this.workPerformanceRatings),
-        mentorship: this.getAverageRating(this.overallExperienceRatings),
-        
-        relevance: this.getAverageRating(this.workEnvironmentRatings),
-        skills: this.getAverageRating(this.supportGuidanceRatings),
-        growth: this.getAverageRating(this.workPerformanceRatings),
-        satisfaction: this.getAverageRating(this.overallExperienceRatings),
+        workAttitudeRatings: this.workEnvironmentRatings,
+        workPerformanceRatings: this.workPerformanceRatings
       };
 
-      await submitCompanyEvaluation(surveyData);
+      await submitStudentSurvey(surveyData);
       this.setState({ isSubmitted: true });
     } catch (error) {
-      console.error('Error submitting evaluation:', error);
+      console.error('Error submitting survey:', error);
       this.setState({
         snackbar: {
           open: true,
-          message: error.message || 'Error submitting evaluation. Please try again.',
+          message: error.message || 'Error submitting survey. Please try again.',
           severity: 'error'
         }
       });
@@ -277,10 +323,51 @@ class CompanyEvaluation extends Component {
     }));
   }
 
-  validateForm() {
-    const { companyName, studentName, schoolYear, semester, program } = this.state.formData;
+  handleStudentIdChange = (event) => {
+    let value = event.target.value;
+    let previousValue = this.state.formData.studentId;
     
-    if (!companyName || !studentName || !schoolYear || !semester || !program) {
+    // Remove any non-digit and non-hyphen characters
+    value = value.replace(/[^\d-]/g, '');
+    
+    // Handle backspace/deletion
+    if (value.length < previousValue.length) {
+      // If deleting, remove the hyphen if it's the last character
+      if (value.endsWith('-')) {
+        value = value.slice(0, -1);
+      }
+      
+      this.setState(prevState => ({
+        formData: {
+          ...prevState.formData,
+          studentId: value
+        }
+      }));
+      return;
+    }
+
+    // Add hyphens automatically when typing
+    if (value.length === 2 && !value.includes('-')) {
+      value = value + '-';
+    } else if (value.length === 7 && value.split('-').length === 2) {
+      value = value + '-';
+    }
+    
+    // Limit to 11 characters (XX-XXXX-XXX)
+    value = value.slice(0, 11);
+    
+    this.setState(prevState => ({
+      formData: {
+        ...prevState.formData,
+        studentId: value
+      }
+    }));
+  }
+
+  validateForm() {
+    const { companyName, studentName, studentId, schoolYear, semester, program } = this.state.formData;
+    
+    if (!companyName || !studentName || !studentId || !schoolYear || !semester || !program) {
       this.setState({
         snackbar: {
           open: true,
@@ -442,6 +529,40 @@ class CompanyEvaluation extends Component {
                 '&.Mui-focused': {
                   color: '#800000'
                 }
+              }
+            }}
+          />
+
+          <TextField
+            label="Student ID Number"
+            name="studentId"
+            value={formData.studentId}
+            onChange={this.handleStudentIdChange}
+            required
+            fullWidth
+            placeholder="XX-XXXX-XXX"
+            helperText="Format: XX-XXXX-XXX (e.g., 11-2222-333)"
+            inputProps={{
+              maxLength: 11,
+              pattern: "\\d{2}-\\d{4}-\\d{3}"
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': {
+                  borderColor: '#800000',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#800000',
+                }
+              },
+              '& .MuiInputLabel-root': {
+                '&.Mui-focused': {
+                  color: '#800000'
+                }
+              },
+              '& .MuiFormHelperText-root': {
+                color: 'text.secondary',
+                marginLeft: 1
               }
             }}
           />

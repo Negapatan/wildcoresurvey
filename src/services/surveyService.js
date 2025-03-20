@@ -3,11 +3,11 @@ import { db } from '../firebase-config';
 
 export const submitStudentSurvey = async (surveyData) => {
   try {
-    // Remove authentication check
     const { 
       workAttitudeRatings, 
       workPerformanceRatings, 
       studentName,
+      studentId,
       companyName,
       program,
       schoolYear,
@@ -22,6 +22,7 @@ export const submitStudentSurvey = async (surveyData) => {
       // Survey Information
       surveyType: 'student',
       studentName,
+      studentId,
       companyName,
       program,
       schoolYear,
@@ -44,9 +45,17 @@ export const submitStudentSurvey = async (surveyData) => {
       maxPossibleScore: (Object.keys(workAttitudeRatings).length * 5) + 
                        (Object.keys(workPerformanceRatings).length * 10),
       submittedAt: serverTimestamp(),
-      submittedBy: 'anonymous',  // Changed from auth.currentUser.uid
+      submittedBy: 'anonymous',
       status: 'submitted'
     };
+
+    // Validate required fields before submission
+    const requiredFields = ['studentName', 'studentId', 'companyName', 'program', 'schoolYear', 'semester'];
+    const missingFields = requiredFields.filter(field => !docData[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    }
 
     const studentSurveysRef = collection(db, 'studentSurveys');
     const docRef = await addDoc(studentSurveysRef, docData);
