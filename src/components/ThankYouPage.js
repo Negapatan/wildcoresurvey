@@ -1,8 +1,9 @@
 import React, { Component } from 'react';
-import { Box, Typography, Button, Fade, Grow, Paper } from '@mui/material';
+import { Box, Typography, Button, Fade, Grow, Paper, Stack } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import PropTypes from 'prop-types';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
 const StyledComponents = {
   ThankYouButton: styled(Button)(({ theme }) => ({
@@ -18,6 +19,23 @@ const StyledComponents = {
     borderRadius: '8px',
     transition: 'all 0.3s ease',
     fontSize: '1.1rem',
+    fontWeight: 600,
+    width: '280px',
+  })),
+
+  SecondaryButton: styled(Button)(({ theme }) => ({
+    backgroundColor: 'rgba(128, 0, 0, 0.8)',
+    color: '#FFD700',
+    '&:hover': {
+      backgroundColor: 'rgba(128, 0, 0, 0.9)',
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 12px rgba(128, 0, 0, 0.2)',
+    },
+    padding: theme.spacing(1.5, 4),
+    marginTop: theme.spacing(2),
+    borderRadius: '8px',
+    transition: 'all 0.3s ease',
+    fontSize: '1rem',
     fontWeight: 600,
     width: '280px',
   })),
@@ -130,12 +148,30 @@ class ThankYouPage extends Component {
   }
 
   handleReturn = () => {
-    window.history.back();
+    if (this.props.onReturn) {
+      this.props.onReturn();
+    }
+  }
+
+  handleMakeAnother = () => {
+    if (this.props.onMakeAnother) {
+      this.props.onMakeAnother();
+    }
   }
 
   render() {
-    const { ThankYouButton, Container, ContentWrapper, IconWrapper, Title, Message, SubMessage } = StyledComponents;
+    const { 
+      ThankYouButton, 
+      SecondaryButton, 
+      Container, 
+      ContentWrapper, 
+      IconWrapper, 
+      Title, 
+      Message, 
+      SubMessage 
+    } = StyledComponents;
     const messageContent = this.message;
+    const { surveyType, onMakeAnother } = this.props;
 
     return (
       <Container>
@@ -166,13 +202,26 @@ class ThankYouPage extends Component {
                 {messageContent.subMessage}
               </SubMessage>
 
-              <ThankYouButton 
-                variant="contained"
-                size="large"
-                onClick={this.handleReturn}
-              >
-                Return to Survey Selection
-              </ThankYouButton>
+              <Stack spacing={1} sx={{ width: '100%', alignItems: 'center' }}>
+                {surveyType === 'company' && onMakeAnother && (
+                  <SecondaryButton
+                    variant="contained"
+                    size="large"
+                    onClick={this.handleMakeAnother}
+                    startIcon={<AddCircleOutlineIcon />}
+                  >
+                    Evaluate Another Student
+                  </SecondaryButton>
+                )}
+
+                <ThankYouButton 
+                  variant="contained"
+                  size="large"
+                  onClick={this.handleReturn}
+                >
+                  Return to Survey Selection
+                </ThankYouButton>
+              </Stack>
             </Box>
           </Fade>
         </ContentWrapper>
@@ -183,7 +232,9 @@ class ThankYouPage extends Component {
 
 // PropTypes for better type checking
 ThankYouPage.propTypes = {
-  surveyType: PropTypes.oneOf(['student', 'company', 'evaluation']).isRequired
+  surveyType: PropTypes.oneOf(['student', 'company', 'evaluation']).isRequired,
+  onMakeAnother: PropTypes.func,
+  onReturn: PropTypes.func
 };
 
 export default ThankYouPage; 

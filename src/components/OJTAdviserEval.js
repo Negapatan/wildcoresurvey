@@ -20,6 +20,9 @@ import { styled } from '@mui/material/styles';
 import ThankYouPage from './ThankYouPage';
 import { submitCompanySurvey } from '../services/surveyService';
 
+// This component is for OJT advisers to evaluate companies
+// It saves data to the OJTadvisers collection
+
 const StyledComponents = {
   SurveySection: styled(Paper)(({ theme }) => ({
     padding: theme.spacing(4),
@@ -139,10 +142,6 @@ class CompanySurvey extends Component {
 
   handleReturn = () => {
     window.location.reload();
-  }
-
-  handleBack = () => {
-    window.history.back();
   }
 
   validateForm() {
@@ -314,11 +313,21 @@ class CompanySurvey extends Component {
     const { isSubmitting, isSubmitted, snackbar } = this.state;
 
     if (isSubmitted) {
-      return <ThankYouPage surveyType="company" />;
+      return <ThankYouPage 
+        surveyType="company" 
+        onReturn={() => window.location.href = '/'} 
+      />;
     }
 
     return (
-      <Box sx={{ maxWidth: 800, mx: 'auto', p: 2 }}>
+      <Box sx={{ 
+        maxWidth: 800, 
+        mx: 'auto', 
+        p: 3,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center'
+      }}>
         <SurveySection>
           <Typography 
             variant="h4" 
@@ -453,34 +462,14 @@ class CompanySurvey extends Component {
           </Stack>
         </SurveySection>
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 4, mb: 6 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <SubmitButton
             variant="contained"
-            size="large"
             onClick={this.handleSubmit}
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Survey'}
+            {isSubmitting ? 'Submitting...' : 'Submit Adviser Evaluation'}
           </SubmitButton>
-
-          <Button
-            variant="contained"
-            size="large"
-            onClick={this.handleBack}
-            sx={{
-              backgroundColor: '#600000',
-              color: '#FFD700',
-              '&:hover': {
-                backgroundColor: '#400000',
-              },
-              '&:disabled': {
-                backgroundColor: '#800000',
-                opacity: 0.7,
-              }
-            }}
-          >
-            Back to Survey Selection
-          </Button>
         </Box>
 
         <Snackbar

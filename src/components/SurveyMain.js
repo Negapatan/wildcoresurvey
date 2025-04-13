@@ -1,244 +1,103 @@
 import React, { Component } from 'react';
-import { 
-  Container, 
-  Button, 
-  Box, 
-  Typography,
-  Card,
-  CardContent,
-  CardActions
-} from '@mui/material';
-import { styled } from '@mui/material/styles';
-import CompanyMentorEval from './CompanyMentorEval';
-import OJTAdviserEval from './OJTAdviserEval';
-import StudentsEval from './StudentsEval';
 import PrivacyDisclaimer from './PrivacyDisclaimer';
-
-const SurveyCard = styled(Card)(({ theme }) => ({
-  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-  width: '400px',
-  height: '280px',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'space-between',
-  transition: 'transform 0.3s ease-in-out',
-  margin: '16px',
-  '&:hover': {
-    transform: 'scale(1.02)',
-  },
-  [theme.breakpoints.down('sm')]: {
-    width: '100%',
-    height: 'auto',
-    minHeight: '220px',
-    margin: '8px 0',
-  },
-}));
-
-const CardContentStyled = styled(CardContent)({
-  flexGrow: 1,
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: '24px',
-  textAlign: 'center',
-});
-
-const SurveyButton = styled(Button)(({ theme }) => ({
-  backgroundColor: '#800000',
-  color: '#FFD700',
-  '&:hover': {
-    backgroundColor: '#600000',
-  },
-  padding: theme.spacing(1.5, 3),
-  width: '200px',
-  height: '48px',
-}));
+import SecurityRedirect from './SecurityRedirect';
+import CompanyAccess from './CompanyAccess';
+import StudentAccess from './StudentAccess';
+import AdviserAccess from './AdviserAccess';
+import ThankYouPage from './ThankYouPage';
 
 class SurveyMain extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      surveyType: null,
-      disclaimerAccepted: false
+      disclaimerAccepted: false,
+      securityVerified: false,
+      userRole: null,
+      showThankYou: false,
+      surveyType: null
     };
   }
 
   componentDidMount() {
     // Add browser history state handling
     window.addEventListener('popstate', this.handlePopState);
-    // Add keyboard event listener
-    document.addEventListener('keydown', this.handleKeyDown);
   }
 
   componentWillUnmount() {
     // Clean up event listeners
     window.removeEventListener('popstate', this.handlePopState);
-    document.removeEventListener('keydown', this.handleKeyDown);
   }
 
   handlePopState = (event) => {
     if (event.state === null) {
-      this.setState({ surveyType: null });
+      this.setState({ userRole: null, securityVerified: false });
     }
-  }
-
-  handleKeyDown = (event) => {
-    // Handle Escape key
-    if (event.key === 'Escape' && this.state.surveyType) {
-      this.handleBack();
-    }
-  }
-
-  handleSurveySelect = (type) => {
-    // Push state to browser history
-    window.history.pushState({ page: 'survey' }, '', '');
-    this.setState({ surveyType: type });
-  }
-
-  handleBack = () => {
-    window.history.back();
   }
 
   handleDisclaimerAccept = () => {
     this.setState({ disclaimerAccepted: true });
   }
 
-  // Add constants for survey types
-  SURVEY_TYPES = {
-    COMPANY_MENTOR: 'student',
-    OJT_ADVISER: 'company',
-    STUDENT: 'evaluation'
-  };
-
-  renderSurveyCards() {
-    return (
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center',
-        width: '100%',
-        px: { xs: 2, sm: 3 }
-      }}>
-        <Typography 
-          variant="h4" 
-          component="h1" 
-          gutterBottom
-          sx={{ 
-            color: '#FFD700', 
-            mb: { xs: 3, sm: 6 },
-            textAlign: 'center',
-            fontWeight: 'bold',
-            fontSize: { xs: '1.75rem', sm: '2.125rem' }
-          }}
-        >
-          Select Survey Type
-        </Typography>
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: { xs: 'column', md: 'row' },
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: { xs: 2, md: 3 },
-          width: '100%',
-          maxWidth: '900px',
-          mx: 'auto'
-        }}>
-          {this.renderSurveyCard(
-            'For Company Mentor',
-            'Evaluate student performance during internship',
-            this.SURVEY_TYPES.COMPANY_MENTOR
-          )}
-          {this.renderSurveyCard(
-            'For OJT Advisers',
-            'Assess and guide OJT partners',
-            this.SURVEY_TYPES.OJT_ADVISER
-          )}
-          {this.renderSurveyCard(
-            'For Students',
-            'Evaluate your internship company',
-            this.SURVEY_TYPES.STUDENT
-          )}
-        </Box>
-      </Box>
-    );
+  handleRoleSelect = (role) => {
+    this.setState({ 
+      securityVerified: true,
+      userRole: role
+    });
   }
 
-  renderSurveyCard(title, description, type) {
-    return (
-      <SurveyCard elevation={3}>
-        <CardContentStyled>
-          <Typography 
-            variant="h5" 
-            component="h2" 
-            sx={{ 
-              color: '#800000',
-              mb: 2,
-              textAlign: 'center',
-              fontWeight: 'bold',
-              fontSize: { xs: '1.2rem', sm: '1.4rem' },
-              height: '60px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            {title}
-          </Typography>
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              textAlign: 'center',
-              color: 'text.secondary',
-              mb: 3,
-              fontSize: { xs: '0.9rem', sm: '1rem' },
-              height: '48px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            {description}
-          </Typography>
-        </CardContentStyled>
-        <CardActions sx={{ 
-          justifyContent: 'center', 
-          p: 3,
-          pb: 4
-        }}>
-          <SurveyButton 
-            onClick={() => this.handleSurveySelect(type)}
-            variant="contained"
-          >
-            Start Survey
-          </SurveyButton>
-        </CardActions>
-      </SurveyCard>
-    );
+  handleBackToRoleSelection = () => {
+    this.setState({
+      securityVerified: true,
+      userRole: null
+    });
   }
 
-  render() {
-    const { disclaimerAccepted, surveyType } = this.state;
+  handleMakeAnother = () => {
+    this.setState({ showThankYou: false, surveyType: null });
+  }
+
+  renderSurveyContent() {
+    const { disclaimerAccepted, securityVerified, userRole } = this.state;
 
     if (!disclaimerAccepted) {
       return <PrivacyDisclaimer onAccept={this.handleDisclaimerAccept} />;
     }
 
-    return (
-      <Container maxWidth="md" sx={{ py: 3 }}>
-        {!surveyType ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            {this.renderSurveyCards()}
-          </Box>
-        ) : (
-          <Box>
-            {surveyType === this.SURVEY_TYPES.COMPANY_MENTOR && <CompanyMentorEval />}
-            {surveyType === this.SURVEY_TYPES.OJT_ADVISER && <OJTAdviserEval />}
-            {surveyType === this.SURVEY_TYPES.STUDENT && <StudentsEval />}
-          </Box>
-        )}
-      </Container>
-    );
+    if (!securityVerified) {
+      return <SecurityRedirect onRoleSelect={this.handleRoleSelect} />;
+    }
+    
+    // Special handling for each role - redirect to appropriate access component
+    if (userRole === 'company') {
+      return <CompanyAccess onBack={this.handleBackToRoleSelection} />;
+    }
+
+    if (userRole === 'student') {
+      return <StudentAccess onBack={this.handleBackToRoleSelection} />;
+    }
+    
+    if (userRole === 'adviser') {
+      return <AdviserAccess onBack={this.handleBackToRoleSelection} />;
+    }
+
+    // Fallback to SecurityRedirect if no role is selected
+    return <SecurityRedirect onRoleSelect={this.handleRoleSelect} />;
+  }
+
+  render() {
+    const { showThankYou, surveyType } = this.state;
+
+    if (showThankYou) {
+      return (
+        <ThankYouPage 
+          surveyType={surveyType} 
+          onMakeAnother={this.handleMakeAnother}
+          onReturn={this.handleBackToRoleSelection}
+        />
+      );
+    }
+
+    return this.renderSurveyContent();
   }
 }
 

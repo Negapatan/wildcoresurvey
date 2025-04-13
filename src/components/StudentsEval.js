@@ -16,10 +16,10 @@ import {
   Autocomplete
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { submitStudentSurvey } from '../services/surveyService';
+import { submitCompanyEvaluation } from '../services/surveyService';
 import ThankYouPage from './ThankYouPage';
 import InfoIcon from '@mui/icons-material/Info';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc } from 'firebase/firestore';
 import { db } from '../firebase-config';
 
 const StyledComponents = {
@@ -54,14 +54,20 @@ const StyledComponents = {
 class CompanyEvaluation extends Component {
   constructor(props) {
     super(props);
+    
+    // Get student info from props if available
+    const studentInfo = this.props.studentInfo || {};
+    
     this.state = {
       formData: {
         companyName: '',
-        studentName: '',
-        studentId: '',
+        studentName: studentInfo.name || '',
+        studentId: studentInfo.studentId || '',
         schoolYear: '',
         semester: '',
-        program: '',
+        program: studentInfo.program || '',
+        section: studentInfo.section || '',
+        college: studentInfo.college || 'CICS',
         evaluatorName: ''
       },
       workEnvironmentRatings: {},
@@ -74,7 +80,8 @@ class CompanyEvaluation extends Component {
         open: false,
         message: '',
         severity: 'success'
-      }
+      },
+      userRole: this.props.userRole || 'student' // Default to student if not provided
     };
 
     this.workEnvironmentItems = [
@@ -226,23 +233,80 @@ class CompanyEvaluation extends Component {
 
   validateStudentId = async (studentId) => {
     try {
-      // Check both collections for existing student ID
-      const studentSurveysRef = collection(db, 'studentSurveys');
+      const studentName = this.state.formData.studentName;
+      const section = this.state.formData.section;
+      const college = this.props.studentInfo?.college || this.state.formData.college || 'CICS';
+      
+      console.log('Validating student evaluation submission:', { studentId, studentName, section, college });
+      console.log('Current user role:', this.state.userRole);
+      console.log('Student info from props:', this.props.studentInfo);
+
+      // Skip validation if student info was provided from StudentAccess component
+      // as we've already verified the student hasn't submitted a survey
+      if (this.props.studentInfo) {
+        console.log('Skipping validation since student info was provided from StudentAccess component');
+        return true;
+      }
+
+      // Skip validation for company and adviser roles
+      if (this.state.userRole === 'company' || this.state.userRole === 'adviser') {
+        console.log('Skipping validation since user is a company or adviser');
+        return true;
+      }
+
+      // For student evaluations of companies, check by student name instead of ID
+      // This ensures each student can only submit one evaluation regardless of section
+      
+      // METHOD 1: Check the legacy flat collection
       const companyEvalsRef = collection(db, 'companyEvaluations');
       
-      // Check studentSurveys collection
-      const studentSurveysQuery = query(studentSurveysRef, where('studentId', '==', studentId));
-      const studentSurveysSnapshot = await getDocs(studentSurveysQuery);
-      
-      // Check companyEvaluations collection
-      const companyEvalsQuery = query(companyEvalsRef, where('studentId', '==', studentId));
+      // Check companyEvaluations collection by student name
+      const companyEvalsQuery = query(companyEvalsRef, where('studentName', '==', studentName));
       const companyEvalsSnapshot = await getDocs(companyEvalsQuery);
       
-      if (!studentSurveysSnapshot.empty || !companyEvalsSnapshot.empty) {
+      console.log('Found in companyEvaluations by student name:', !companyEvalsSnapshot.empty);
+      
+      // METHOD 2: Check in the new hierarchical structure
+      let hierarchicalSnapshot = { empty: true };
+      
+      try {
+        // Normalize the student ID for document reference
+        const normalizedStudentId = studentId 
+          ? studentId.replace(/[^a-zA-Z0-9]/g, '_')
+          : studentName.trim().toLowerCase().replace(/\s+/g, '_');
+          
+        console.log('Checking hierarchical structure:', `departments/${college}/sections/${section}/students/${normalizedStudentId}/evaluations`);
+        
+        // Create reference to the student's evaluations collection
+        const departmentRef = doc(db, 'departments', college);
+        const sectionsRef = collection(departmentRef, 'sections');
+        const sectionDocRef = doc(sectionsRef, section);
+        const studentsRef = collection(sectionDocRef, 'students');
+        const studentDocRef = doc(studentsRef, normalizedStudentId);
+        const evaluationsRef = collection(studentDocRef, 'evaluations');
+        
+        // Get all evaluations for this student
+        hierarchicalSnapshot = await getDocs(evaluationsRef);
+        console.log('Hierarchical check result:', !hierarchicalSnapshot.empty);
+      } catch (error) {
+        console.log('Error checking hierarchical structure:', error);
+        console.log('Hierarchical structure may not exist yet, proceeding with legacy check only');
+      }
+      
+      console.log('Student records check results:', {
+        foundInLegacyCollection: !companyEvalsSnapshot.empty,
+        foundInHierarchicalStructure: !hierarchicalSnapshot.empty
+      });
+      
+      // If found in either structure, show error
+      if (!companyEvalsSnapshot.empty || !hierarchicalSnapshot.empty) {
+        console.log('Student has already submitted a company evaluation');
+        companyEvalsSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
+        
         this.setState({
           snackbar: {
             open: true,
-            message: 'This Student ID already exists in the system. Each student can only submit one evaluation.',
+            message: 'You have already submitted a company evaluation. Each student can only submit one company evaluation.',
             severity: 'error'
           }
         });
@@ -252,6 +316,7 @@ class CompanyEvaluation extends Component {
       // ID format validation (XX-XXXX-XXX)
       const idRegex = /^\d{2}-\d{4}-\d{3}$/;
       if (!idRegex.test(studentId)) {
+        console.log('Student ID format validation failed. Expected format: XX-XXXX-XXX');
         this.setState({
           snackbar: {
             open: true,
@@ -262,13 +327,14 @@ class CompanyEvaluation extends Component {
         return false;
       }
       
+      console.log('Student validation passed');
       return true;
     } catch (error) {
-      console.error('Error validating student ID:', error);
+      console.error('Error validating student:', error);
       this.setState({
         snackbar: {
           open: true,
-          message: 'Error validating Student ID. Please try again.',
+          message: 'Error validating student information. Please try again.',
           severity: 'error'
         }
       });
@@ -286,6 +352,10 @@ class CompanyEvaluation extends Component {
     this.setState({ isSubmitting: true });
 
     try {
+      // Get college info from props or state
+      const college = this.props.studentInfo?.college || this.state.formData.college || 'CICS';
+      
+      // Prepare the evaluation data with the proper format for companyEvaluations
       const surveyData = {
         companyName: this.state.formData.companyName,
         studentName: this.state.formData.studentName,
@@ -293,18 +363,39 @@ class CompanyEvaluation extends Component {
         program: this.state.formData.program,
         schoolYear: this.state.formData.schoolYear,
         semester: this.state.formData.semester,
-        workAttitudeRatings: this.workEnvironmentRatings,
-        workPerformanceRatings: this.workPerformanceRatings
+        section: this.state.formData.section,
+        college: college, // Ensure college is included
+        userRole: this.state.userRole,
+        
+        // Work Environment metrics
+        workstation: this.getAverageRating(this.workEnvironmentRatings),
+        resources: this.getAverageRating(this.supportGuidanceRatings), 
+        safety: this.getAverageRating(this.workPerformanceRatings),
+        workload: this.getAverageRating(this.overallExperienceRatings),
+        
+        // Performance Support metrics
+        supervision: this.getAverageRating(this.workEnvironmentRatings),
+        feedback: this.getAverageRating(this.supportGuidanceRatings),
+        training: this.getAverageRating(this.workPerformanceRatings),
+        mentorship: this.getAverageRating(this.overallExperienceRatings),
+        
+        // Experience Quality metrics
+        relevance: this.getAverageRating(this.workEnvironmentRatings),
+        skills: this.getAverageRating(this.supportGuidanceRatings),
+        growth: this.getAverageRating(this.workPerformanceRatings),
+        satisfaction: this.getAverageRating(this.overallExperienceRatings),
       };
 
-      await submitStudentSurvey(surveyData);
+      // Use the correct service function for companyEvaluations
+      console.log('Submitting company evaluation', surveyData);
+      await submitCompanyEvaluation(surveyData);
       this.setState({ isSubmitted: true });
     } catch (error) {
-      console.error('Error submitting survey:', error);
+      console.error('Error submitting evaluation:', error);
       this.setState({
         snackbar: {
           open: true,
-          message: error.message || 'Error submitting survey. Please try again.',
+          message: error.message || 'Error submitting evaluation. Please try again.',
           severity: 'error'
         }
       });
@@ -406,11 +497,6 @@ class CompanyEvaluation extends Component {
     return values.reduce((sum, val) => sum + (val || 0), 0) / values.length;
   }
 
-  handleBack = () => {
-    // Use the browser's history to go back to the survey selector
-    window.history.back();
-  }
-
   renderRatingSection(title, items, ratings, handleRatingChange) {
     const { SurveySection, RatingContainer } = StyledComponents;
     return (
@@ -437,6 +523,7 @@ class CompanyEvaluation extends Component {
   renderFormFields() {
     const { SurveySection } = StyledComponents;
     const { formData } = this.state;
+    const hasStudentInfo = !!this.props.studentInfo;
 
     const currentYear = new Date().getFullYear();
     const schoolYears = [
@@ -453,7 +540,7 @@ class CompanyEvaluation extends Component {
     return (
       <SurveySection>
         <Typography variant="h5" sx={{ color: '#800000', mb: 2, textAlign: 'center' }}>
-          Basic Information
+          Company Evaluation Form
         </Typography>
         
         <Box
@@ -516,6 +603,7 @@ class CompanyEvaluation extends Component {
             onChange={this.handleFormChange}
             required
             fullWidth
+            disabled={hasStudentInfo}
             sx={{
               '& .MuiOutlinedInput-root': {
                 '&:hover fieldset': {
@@ -533,6 +621,56 @@ class CompanyEvaluation extends Component {
             }}
           />
 
+          {hasStudentInfo && (
+            <>
+              <TextField
+                label="Section"
+                name="section"
+                value={formData.section}
+                disabled
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '&:hover fieldset': {
+                      borderColor: '#800000',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#800000',
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    '&.Mui-focused': {
+                      color: '#800000'
+                    }
+                  }
+                }}
+              />
+              
+              <TextField
+                label="College"
+                name="college"
+                value={formData.college}
+                disabled
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '&:hover fieldset': {
+                      borderColor: '#800000',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#800000',
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    '&.Mui-focused': {
+                      color: '#800000'
+                    }
+                  }
+                }}
+              />
+            </>
+          )}
+
           <TextField
             label="Student ID Number"
             name="studentId"
@@ -542,6 +680,7 @@ class CompanyEvaluation extends Component {
             fullWidth
             placeholder="XX-XXXX-XXX"
             helperText="Format: XX-XXXX-XXX (e.g., 11-2222-333)"
+            disabled={hasStudentInfo && formData.studentId}
             inputProps={{
               maxLength: 11,
               pattern: "\\d{2}-\\d{4}-\\d{3}"
@@ -676,11 +815,21 @@ class CompanyEvaluation extends Component {
   }
 
   render() {
-    const { SubmitButton } = StyledComponents;
-    const { isSubmitting, isSubmitted, snackbar } = this.state;
+    const { 
+      SubmitButton 
+    } = StyledComponents;
+    
+    const { 
+      isSubmitting, 
+      isSubmitted, 
+      snackbar 
+    } = this.state;
 
     if (isSubmitted) {
-      return <ThankYouPage surveyType="evaluation" />;
+      return <ThankYouPage 
+        surveyType="evaluation" 
+        onReturn={() => window.location.href = '/'} 
+      />;
     }
 
     return (
@@ -690,8 +839,7 @@ class CompanyEvaluation extends Component {
         p: 3,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        boxSizing: 'border-box'
+        alignItems: 'center'
       }}>
         {this.renderFormFields()}
         {this.renderRatingSection(
@@ -722,34 +870,14 @@ class CompanyEvaluation extends Component {
           this.handleOverallExperienceRatingChange
         )}
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 4, mb: 6 }}>
+        <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
           <SubmitButton
             variant="contained"
-            size="large"
             onClick={this.handleSubmit}
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Evaluation'}
+            {isSubmitting ? 'Submitting...' : 'Submit Company Evaluation'}
           </SubmitButton>
-
-          <Button
-            variant="contained"
-            size="large"
-            onClick={this.handleBack}
-            sx={{
-              backgroundColor: '#600000',
-              color: '#FFD700',
-              '&:hover': {
-                backgroundColor: '#400000',
-              },
-              '&:disabled': {
-                backgroundColor: '#800000',
-                opacity: 0.7,
-              }
-            }}
-          >
-            Back to Survey Selection
-          </Button>
         </Box>
 
         <Snackbar
