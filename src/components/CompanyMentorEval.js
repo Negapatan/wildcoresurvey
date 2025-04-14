@@ -121,7 +121,8 @@ class StudentSurvey extends Component {
         program: '',
         schoolYear: '',
         semester: '',
-        section: 'OJT' // Default section until a student is selected
+        section: 'OJT', // Default section until a student is selected
+        evaluationMode: this.props.evaluationMode || 'FINAL' // Use value passed from CompanyAccess.js or default to FINAL
       },
       companies: [],
       companyStudents: [],
@@ -433,6 +434,12 @@ class StudentSurvey extends Component {
     window.history.back();
   }
 
+  handleEvaluationModeChange = (mode) => {
+    const formData = { ...this.formData };
+    formData.evaluationMode = mode;
+    this.formData = formData;
+  };
+
   validateForm() {
     const { studentName, companyName, college, program, schoolYear, semester, section } = this.formData;
     
@@ -488,36 +495,85 @@ class StudentSurvey extends Component {
 
   validateStudentInfo = async () => {
     try {
-      const { studentName, studentId, college } = this.formData;
-      console.log('Validating student info for student survey:', { studentName, studentId, college });
+      const { studentName, studentId, evaluationMode } = this.formData;
+      console.log('Validating student info for student survey:', { studentName, studentId, evaluationMode });
       
       if (!studentId || !studentName) {
         console.log('Missing student name or ID');
         this.showError('Student name and ID are required');
         return false;
       }
-
-      if (!college) {
+      
+      if (!this.formData.college) {
         console.log('Missing college information');
         this.showError('Please select a college for this student');
         return false;
       }
       
-      // Only check studentSurveys collection since this component is for rating student performance
-      const studentSurveysRef = collection(db, 'studentSurveys');
+      // Check period-specific collection
+      const evalMode = evaluationMode.toLowerCase();
+      const studentSurveysCollectionName = `studentSurveys_${evalMode}`;
+      const studentSurveysRef = collection(db, studentSurveysCollectionName);
+      
+      // Query for documents with the matching studentId
       const studentSurveysQuery = query(studentSurveysRef, where('studentId', '==', studentId));
       const studentSurveysSnapshot = await getDocs(studentSurveysQuery);
       
       console.log('Student records check results:', {
-        foundInStudentSurveys: !studentSurveysSnapshot.empty
+        evaluationMode,
+        foundInPeriodCollection: !studentSurveysSnapshot.empty
       });
       
       if (!studentSurveysSnapshot.empty) {
-        console.log('Student ID found in studentSurveys collection. Documents:');
+        console.log(`Student ID found in ${studentSurveysCollectionName} collection. Documents:`);
         studentSurveysSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
         
-        this.showError('This student has already been evaluated. Each student can only have one performance evaluation.');
+        this.showError(`This student has already been evaluated for ${evaluationMode} period. Each student can only have one ${evaluationMode.toLowerCase()} performance evaluation.`);
         return false;
+      }
+      
+      // Also check the combined collection as a backup
+      try {
+        const combinedCollectionRef = collection(db, 'studentSurveys');
+        const combinedQuery = query(
+          combinedCollectionRef, 
+          where('studentId', '==', studentId),
+          where('evaluationMode', '==', evaluationMode)
+        );
+        const combinedSnapshot = await getDocs(combinedQuery);
+        
+        if (!combinedSnapshot.empty) {
+          console.log(`Student ID found in combined collection with ${evaluationMode} mode. Documents:`);
+          combinedSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
+          
+          this.showError(`This student has already been evaluated for ${evaluationMode} period. Each student can only have one ${evaluationMode.toLowerCase()} performance evaluation.`);
+          return false;
+        }
+      } catch (error) {
+        console.warn('Error checking combined collection:', error);
+        // Continue with validation even if this check fails
+      }
+      
+      // Also check the legacy collection as a final backup
+      try {
+        const legacyCollectionRef = collection(db, 'studentSurveys_legacy');
+        const legacyQuery = query(
+          legacyCollectionRef, 
+          where('studentId', '==', studentId),
+          where('evaluationMode', '==', evaluationMode)
+        );
+        const legacySnapshot = await getDocs(legacyQuery);
+        
+        if (!legacySnapshot.empty) {
+          console.log(`Student ID found in legacy collection with ${evaluationMode} mode. Documents:`);
+          legacySnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
+          
+          this.showError(`This student has already been evaluated for ${evaluationMode} period. Each student can only have one ${evaluationMode.toLowerCase()} performance evaluation.`);
+          return false;
+        }
+      } catch (error) {
+        console.warn('Error checking legacy collection:', error);
+        // Continue with validation even if legacy check fails
       }
       
       return true;
@@ -552,6 +608,7 @@ class StudentSurvey extends Component {
       
       console.log('Form data before submission:', this.formData);
       console.log('Section value:', this.formData.section);
+      console.log('Evaluation mode:', this.formData.evaluationMode);
       console.log('Preparing to submit to studentSurveys collection:', submissionData);
       
       const surveyId = await submitStudentSurvey(submissionData);
@@ -570,11 +627,84 @@ class StudentSurvey extends Component {
   // Render Methods
   renderFormFields() {
     const { SurveySection } = StyledComponents;
+    const { formData } = this.state;
+    const isCompanyUser = this.state.userRole === 'company';
+    
     return (
       <SurveySection>
         <Typography variant="h5" sx={{ color: '#800000', mb: 3, textAlign: 'center' }}>
-          Student Evaluation Form
+          Student {formData.evaluationMode.toLowerCase()} Evaluation Form
         </Typography>
+        
+        {/* Evaluation Mode Selection - only show if not a company user */}
+        {!isCompanyUser && (
+          <Box sx={{ width: '100%', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 500, textAlign: 'center' }}>
+              Evaluation Mode:
+            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
+              <Button 
+                variant={formData.evaluationMode === 'MIDTERM' ? 'contained' : 'outlined'} 
+                onClick={() => this.handleEvaluationModeChange('MIDTERM')}
+                sx={{
+                  flex: 1,
+                  maxWidth: 150,
+                  backgroundColor: formData.evaluationMode === 'MIDTERM' ? '#800000' : 'transparent',
+                  color: formData.evaluationMode === 'MIDTERM' ? '#FFD700' : '#800000',
+                  borderColor: '#800000',
+                  '&:hover': {
+                    backgroundColor: formData.evaluationMode === 'MIDTERM' ? '#600000' : 'rgba(128, 0, 0, 0.04)',
+                    borderColor: '#800000',
+                  }
+                }}
+              >
+                Midterm
+              </Button>
+              <Button 
+                variant={formData.evaluationMode === 'FINAL' ? 'contained' : 'outlined'} 
+                onClick={() => this.handleEvaluationModeChange('FINAL')}
+                sx={{
+                  flex: 1,
+                  maxWidth: 150,
+                  backgroundColor: formData.evaluationMode === 'FINAL' ? '#800000' : 'transparent',
+                  color: formData.evaluationMode === 'FINAL' ? '#FFD700' : '#800000',
+                  borderColor: '#800000',
+                  '&:hover': {
+                    backgroundColor: formData.evaluationMode === 'FINAL' ? '#600000' : 'rgba(128, 0, 0, 0.04)',
+                    borderColor: '#800000',
+                  }
+                }}
+              >
+                Final
+              </Button>
+            </Box>
+          </Box>
+        )}
+        
+        {/* Evaluation Mode Badge for company users - just display the mode without allowing changes */}
+        {isCompanyUser && (
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            mb: 3 
+          }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                backgroundColor: '#800000',
+                color: '#FFD700',
+                padding: '4px 12px',
+                borderRadius: '16px',
+                fontWeight: 'bold',
+                fontSize: '0.85rem',
+                display: 'inline-block'
+              }}
+            >
+              {formData.evaluationMode} EVALUATION
+            </Typography>
+          </Box>
+        )}
+        
         <Stack spacing={3} sx={{ width: '100%' }}>
           {this.renderCompanySelect()}
           {this.renderStudentSelect()}
@@ -930,11 +1060,12 @@ class StudentSurvey extends Component {
 
   render() {
     const { SurveySection, SubmitButton } = StyledComponents;
-    const { isSubmitting, isSubmitted, snackbar } = this.state;
+    const { isSubmitting, isSubmitted, snackbar, formData } = this.state;
 
     if (isSubmitted) {
       return <ThankYouPage 
         surveyType="company" 
+        evaluationMode={formData.evaluationMode}
         onMakeAnother={this.handleMakeAnotherEvaluation}
         onReturn={() => window.location.href = '/'} 
       />;
@@ -1000,8 +1131,10 @@ class StudentSurvey extends Component {
   handleMakeAnotherEvaluation = () => {
     const { selectedCompanyId, formData } = this.state;
     const companyName = formData.companyName;
+    const currentEvaluationMode = formData.evaluationMode; // Get current evaluation mode
     
     console.log('Starting new evaluation for company:', companyName);
+    console.log('Maintaining evaluation mode:', currentEvaluationMode);
     
     this.setState({
       workAttitudeRatings: {},
@@ -1011,9 +1144,11 @@ class StudentSurvey extends Component {
         studentId: '',
         companyName: companyName,
         program: '',
+        college: '', // Reset college for new student
         schoolYear: '',
         semester: '',
-        section: 'OJT' // Default section until a student is selected
+        section: 'OJT', // Default section until a student is selected
+        evaluationMode: currentEvaluationMode // Keep the current evaluation mode
       },
       companyStudents: [],
       isSubmitted: false

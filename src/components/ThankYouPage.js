@@ -147,6 +147,10 @@ class ThankYouPage extends Component {
     return this.messages[this.surveyType];
   }
 
+  get evaluationMode() {
+    return this.props.evaluationMode || 'FINAL';
+  }
+
   handleReturn = () => {
     if (this.props.onReturn) {
       this.props.onReturn();
@@ -155,7 +159,7 @@ class ThankYouPage extends Component {
 
   handleMakeAnother = () => {
     if (this.props.onMakeAnother) {
-      this.props.onMakeAnother();
+      this.props.onMakeAnother(this.evaluationMode);
     }
   }
 
@@ -171,7 +175,7 @@ class ThankYouPage extends Component {
       SubMessage 
     } = StyledComponents;
     const messageContent = this.message;
-    const { surveyType, onMakeAnother } = this.props;
+    const { surveyType, onMakeAnother, evaluationMode } = this.props;
 
     return (
       <Container>
@@ -201,6 +205,25 @@ class ThankYouPage extends Component {
               <SubMessage variant="body1">
                 {messageContent.subMessage}
               </SubMessage>
+
+              {/* Display the evaluation mode if provided */}
+              {evaluationMode && (
+                <Typography 
+                  variant="subtitle2" 
+                  sx={{ 
+                    backgroundColor: '#800000',
+                    color: '#FFD700',
+                    padding: '4px 12px',
+                    borderRadius: '16px',
+                    fontWeight: 'bold',
+                    fontSize: '0.85rem',
+                    marginBottom: 2,
+                    display: 'inline-block'
+                  }}
+                >
+                  {evaluationMode} EVALUATION COMPLETED
+                </Typography>
+              )}
 
               <Stack spacing={1} sx={{ width: '100%', alignItems: 'center' }}>
                 {surveyType === 'company' && onMakeAnother && (
@@ -233,6 +256,7 @@ class ThankYouPage extends Component {
 // PropTypes for better type checking
 ThankYouPage.propTypes = {
   surveyType: PropTypes.oneOf(['student', 'company', 'evaluation']).isRequired,
+  evaluationMode: PropTypes.string, // Add prop type for evaluationMode
   onMakeAnother: PropTypes.func,
   onReturn: PropTypes.func
 };

@@ -19,7 +19,7 @@ import { styled } from '@mui/material/styles';
 import { submitCompanyEvaluation } from '../services/surveyService';
 import ThankYouPage from './ThankYouPage';
 import InfoIcon from '@mui/icons-material/Info';
-import { collection, query, where, getDocs, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase-config';
 
 const StyledComponents = {
@@ -76,6 +76,7 @@ class CompanyEvaluation extends Component {
       overallExperienceRatings: {},
       isSubmitting: false,
       isSubmitted: false,
+      evaluationMode: this.props.evaluationMode || 'FINAL', // Default to FINAL evaluation if not provided
       snackbar: {
         open: false,
         message: '',
@@ -231,110 +232,128 @@ class CompanyEvaluation extends Component {
     }));
   }
 
-  validateStudentId = async (studentId) => {
+  validateStudentId = async () => {
     try {
-      const studentName = this.state.formData.studentName;
-      const section = this.state.formData.section;
-      const college = this.props.studentInfo?.college || this.state.formData.college || 'CICS';
+      const { studentId, studentName, section, college } = this.state.formData;
+      const { evaluationMode } = this.state;
       
-      console.log('Validating student evaluation submission:', { studentId, studentName, section, college });
-      console.log('Current user role:', this.state.userRole);
-      console.log('Student info from props:', this.props.studentInfo);
-
-      // Skip validation if student info was provided from StudentAccess component
-      // as we've already verified the student hasn't submitted a survey
-      if (this.props.studentInfo) {
-        console.log('Skipping validation since student info was provided from StudentAccess component');
-        return true;
+      console.log('Validating student info for company evaluation:', { studentId, studentName, section, evaluationMode });
+      
+      if (!studentId || !studentName) {
+        console.log('Missing student name or ID');
+        this.setState({
+          snackbar: {
+            open: true,
+            message: 'Student name and ID are required',
+            severity: 'error'
+          }
+        });
+        return false;
       }
-
-      // Skip validation for company and adviser roles
-      if (this.state.userRole === 'company' || this.state.userRole === 'adviser') {
-        console.log('Skipping validation since user is a company or adviser');
-        return true;
+      
+      if (!section || !college) {
+        console.log('Missing section or college information');
+        this.setState({
+          snackbar: {
+            open: true,
+            message: 'Section and college information are required',
+            severity: 'error'
+          }
+        });
+        return false;
       }
-
-      // For student evaluations of companies, check by student name instead of ID
-      // This ensures each student can only submit one evaluation regardless of section
       
-      // METHOD 1: Check the legacy flat collection
-      const companyEvalsRef = collection(db, 'companyEvaluations');
+      // Check period-specific collection
+      const evalMode = evaluationMode.toLowerCase();
+      const companyEvalsCollectionName = `companyEvaluations_${evalMode}`;
+      const companyEvalsRef = collection(db, companyEvalsCollectionName);
       
-      // Check companyEvaluations collection by student name
-      const companyEvalsQuery = query(companyEvalsRef, where('studentName', '==', studentName));
+      // Query for documents with the matching studentId
+      const companyEvalsQuery = query(companyEvalsRef, where('studentId', '==', studentId));
       const companyEvalsSnapshot = await getDocs(companyEvalsQuery);
       
-      console.log('Found in companyEvaluations by student name:', !companyEvalsSnapshot.empty);
-      
-      // METHOD 2: Check in the new hierarchical structure
-      let hierarchicalSnapshot = { empty: true };
-      
-      try {
-        // Normalize the student ID for document reference
-        const normalizedStudentId = studentId 
-          ? studentId.replace(/[^a-zA-Z0-9]/g, '_')
-          : studentName.trim().toLowerCase().replace(/\s+/g, '_');
-          
-        console.log('Checking hierarchical structure:', `departments/${college}/sections/${section}/students/${normalizedStudentId}/evaluations`);
-        
-        // Create reference to the student's evaluations collection
-        const departmentRef = doc(db, 'departments', college);
-        const sectionsRef = collection(departmentRef, 'sections');
-        const sectionDocRef = doc(sectionsRef, section);
-        const studentsRef = collection(sectionDocRef, 'students');
-        const studentDocRef = doc(studentsRef, normalizedStudentId);
-        const evaluationsRef = collection(studentDocRef, 'evaluations');
-        
-        // Get all evaluations for this student
-        hierarchicalSnapshot = await getDocs(evaluationsRef);
-        console.log('Hierarchical check result:', !hierarchicalSnapshot.empty);
-      } catch (error) {
-        console.log('Error checking hierarchical structure:', error);
-        console.log('Hierarchical structure may not exist yet, proceeding with legacy check only');
-      }
-      
       console.log('Student records check results:', {
-        foundInLegacyCollection: !companyEvalsSnapshot.empty,
-        foundInHierarchicalStructure: !hierarchicalSnapshot.empty
+        evaluationMode,
+        foundInPeriodCollection: !companyEvalsSnapshot.empty
       });
       
-      // If found in either structure, show error
-      if (!companyEvalsSnapshot.empty || !hierarchicalSnapshot.empty) {
-        console.log('Student has already submitted a company evaluation');
+      if (!companyEvalsSnapshot.empty) {
+        console.log(`Student ID found in ${companyEvalsCollectionName} collection. Documents:`);
         companyEvalsSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
         
         this.setState({
           snackbar: {
             open: true,
-            message: 'You have already submitted a company evaluation. Each student can only submit one company evaluation.',
+            message: `This student has already submitted a company evaluation for ${evaluationMode} period. Each student can only submit one ${evaluationMode.toLowerCase()} company evaluation.`,
             severity: 'error'
           }
         });
         return false;
       }
       
-      // ID format validation (XX-XXXX-XXX)
-      const idRegex = /^\d{2}-\d{4}-\d{3}$/;
-      if (!idRegex.test(studentId)) {
-        console.log('Student ID format validation failed. Expected format: XX-XXXX-XXX');
-        this.setState({
-          snackbar: {
-            open: true,
-            message: 'Please enter a valid Student ID in the format: XX-XXXX-XXX (e.g., 21-2792-200)',
-            severity: 'error'
-          }
-        });
-        return false;
+      // Also check the combined collection as a backup
+      try {
+        const combinedCollectionRef = collection(db, 'companyEvaluations');
+        const combinedQuery = query(
+          combinedCollectionRef, 
+          where('studentId', '==', studentId),
+          where('evaluationMode', '==', evaluationMode)
+        );
+        const combinedSnapshot = await getDocs(combinedQuery);
+        
+        if (!combinedSnapshot.empty) {
+          console.log(`Student ID found in combined collection with ${evaluationMode} mode. Documents:`);
+          combinedSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
+          
+          this.setState({
+            snackbar: {
+              open: true,
+              message: `This student has already submitted a company evaluation for ${evaluationMode} period. Each student can only submit one ${evaluationMode.toLowerCase()} company evaluation.`,
+              severity: 'error'
+            }
+          });
+          return false;
+        }
+      } catch (error) {
+        console.warn('Error checking combined collection:', error);
+        // Continue with validation even if this check fails
       }
       
-      console.log('Student validation passed');
+      // Also check the legacy collection as a final backup
+      try {
+        const legacyCollectionRef = collection(db, 'companyEvaluations_legacy');
+        const legacyQuery = query(
+          legacyCollectionRef, 
+          where('studentId', '==', studentId),
+          where('evaluationMode', '==', evaluationMode)
+        );
+        const legacySnapshot = await getDocs(legacyQuery);
+        
+        if (!legacySnapshot.empty) {
+          console.log(`Student ID found in legacy collection with ${evaluationMode} mode. Documents:`);
+          legacySnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
+          
+          this.setState({
+            snackbar: {
+              open: true,
+              message: `This student has already submitted a company evaluation for ${evaluationMode} period. Each student can only submit one ${evaluationMode.toLowerCase()} company evaluation.`,
+              severity: 'error'
+            }
+          });
+          return false;
+        }
+      } catch (error) {
+        console.warn('Error checking legacy collection:', error);
+        // Continue with validation even if legacy check fails
+      }
+      
       return true;
     } catch (error) {
-      console.error('Error validating student:', error);
+      console.error('Error validating student ID:', error);
       this.setState({
         snackbar: {
           open: true,
-          message: 'Error validating student information. Please try again.',
+          message: `Error validating student information: ${error.message}`,
           severity: 'error'
         }
       });
@@ -345,8 +364,7 @@ class CompanyEvaluation extends Component {
   handleSubmit = async () => {
     if (!this.validateForm()) return;
 
-    const { studentId } = this.state.formData;
-    const isValidId = await this.validateStudentId(studentId);
+    const isValidId = await this.validateStudentId();
     if (!isValidId) return;
 
     this.setState({ isSubmitting: true });
@@ -354,6 +372,7 @@ class CompanyEvaluation extends Component {
     try {
       // Get college info from props or state
       const college = this.props.studentInfo?.college || this.state.formData.college || 'CICS';
+      const { evaluationMode } = this.state;
       
       // Prepare the evaluation data with the proper format for companyEvaluations
       const surveyData = {
@@ -365,6 +384,7 @@ class CompanyEvaluation extends Component {
         semester: this.state.formData.semester,
         section: this.state.formData.section,
         college: college, // Ensure college is included
+        evaluationMode: evaluationMode, // Include evaluation mode
         userRole: this.state.userRole,
         
         // Work Environment metrics
@@ -522,7 +542,7 @@ class CompanyEvaluation extends Component {
 
   renderFormFields() {
     const { SurveySection } = StyledComponents;
-    const { formData } = this.state;
+    const { formData, evaluationMode } = this.state;
     const hasStudentInfo = !!this.props.studentInfo;
 
     const currentYear = new Date().getFullYear();
@@ -540,8 +560,30 @@ class CompanyEvaluation extends Component {
     return (
       <SurveySection>
         <Typography variant="h5" sx={{ color: '#800000', mb: 2, textAlign: 'center' }}>
-          Company Evaluation Form
+          Company {evaluationMode.toLowerCase()} Evaluation Form
         </Typography>
+        
+        {/* Evaluation Mode Badge */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          mb: 2 
+        }}>
+          <Typography
+            variant="subtitle1"
+            sx={{
+              backgroundColor: '#800000',
+              color: '#FFD700',
+              padding: '4px 12px',
+              borderRadius: '16px',
+              fontWeight: 'bold',
+              fontSize: '0.85rem',
+              display: 'inline-block'
+            }}
+          >
+            {evaluationMode} EVALUATION
+          </Typography>
+        </Box>
         
         <Box
           sx={{
@@ -678,8 +720,6 @@ class CompanyEvaluation extends Component {
             onChange={this.handleStudentIdChange}
             required
             fullWidth
-            placeholder="XX-XXXX-XXX"
-            helperText="Format: XX-XXXX-XXX (e.g., 11-2222-333)"
             disabled={hasStudentInfo && formData.studentId}
             inputProps={{
               maxLength: 11,

@@ -72,6 +72,7 @@ class StudentAccess extends Component {
       isAuthenticated: false,
       isLoadingNames: false,
       isLoadingSections: true,
+      evaluationMode: 'FINAL', // Default to FINAL evaluation
       snackbar: {
         open: false,
         message: '',
@@ -245,8 +246,95 @@ class StudentAccess extends Component {
     this.setState({ studentName: e.target.value });
   };
 
+  handleModeChange = (e) => {
+    this.setState({ evaluationMode: e.target.value });
+  };
+
+  validateStudentInfo = async (studentName, sectionId) => {
+    if (!studentName || !sectionId) return false;
+    
+    try {
+      const { evaluationMode } = this.state;
+      console.log(`Validating student info for ${evaluationMode} evaluation:`, studentName);
+      
+      // Check if the student has already submitted a company evaluation for this evaluation mode
+      // Method 1: Check in the legacy flat collection
+      const companyEvalsRef = collection(db, 'companyEvaluations');
+      const companyEvalsQuery = query(
+        companyEvalsRef, 
+        where('studentName', '==', studentName),
+        where('evaluationMode', '==', evaluationMode)
+      );
+      const companyEvalsSnapshot = await getDocs(companyEvalsQuery);
+      
+      // Method 2: Check in the new hierarchical structure
+      // First, determine the department and normalize the student ID
+      const selectedStudentData = this.state.studentData[studentName];
+      const department = selectedStudentData?.college || 'CICS';
+      const section = this.state.studentSection;
+      const studentId = selectedStudentData?.studentId || '';
+      const normalizedStudentId = studentId 
+        ? studentId.replace(/[^a-zA-Z0-9]/g, '_')
+        : studentName.trim().toLowerCase().replace(/\s+/g, '_');
+      
+      console.log('Checking hierarchical structure:', `departments/${department}/sections/${section}/students/${normalizedStudentId}/evaluations`);
+      
+      // Create reference to the student's evaluations collection
+      const departmentRef = doc(db, 'departments', department);
+      const sectionsRef = collection(departmentRef, 'sections');
+      const sectionDocRef = doc(sectionsRef, section);
+      const studentsRef = collection(sectionDocRef, 'students');
+      const studentDocRef = doc(studentsRef, normalizedStudentId);
+      const evaluationsRef = collection(studentDocRef, 'evaluations');
+      
+      // Query evaluations with mode filter
+      const evaluationsQuery = query(evaluationsRef, where('evaluationMode', '==', evaluationMode));
+      
+      // Get all evaluations for this student with matching mode
+      let hierarchicalSnapshot;
+      try {
+        hierarchicalSnapshot = await getDocs(evaluationsQuery);
+        console.log('Hierarchical check result:', !hierarchicalSnapshot.empty);
+      } catch (error) {
+        console.log('Hierarchical structure may not exist yet, proceeding with legacy check only');
+        hierarchicalSnapshot = { empty: true };
+      }
+      
+      console.log('Student records check results:', {
+        evaluationMode,
+        foundInLegacyCollection: !companyEvalsSnapshot.empty,
+        foundInHierarchicalStructure: !hierarchicalSnapshot.empty
+      });
+      
+      // If found in either structure with matching mode, show error
+      if (!companyEvalsSnapshot.empty || !hierarchicalSnapshot.empty) {
+        console.log(`Student has already submitted a ${evaluationMode} company evaluation`);
+        this.setState({
+          snackbar: {
+            open: true,
+            message: `You have already submitted a ${evaluationMode} company evaluation. Each student can only submit one ${evaluationMode} evaluation.`,
+            severity: 'error'
+          }
+        });
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error validating student info:', error);
+      this.setState({
+        snackbar: {
+          open: true,
+          message: `Error validating student information: ${error.message}`,
+          severity: 'error'
+        }
+      });
+      return false;
+    }
+  };
+
   handleSubmit = async () => {
-    const { studentSection, studentName } = this.state;
+    const { studentSection, studentName, sectionId } = this.state;
 
     if (!studentSection || !studentName) {
       this.setState({
@@ -265,7 +353,8 @@ class StudentAccess extends Component {
       console.log('Student submission attempt:', { 
         studentName, 
         studentSection, 
-        studentData: this.state.studentData 
+        studentData: this.state.studentData,
+        evaluationMode: this.state.evaluationMode
       });
       
       // Check if student data exists
@@ -274,63 +363,10 @@ class StudentAccess extends Component {
         throw new Error('Student data not found');
       }
       
-      // Check if the student has already submitted a company evaluation
-      console.log('Checking if student has already submitted a company evaluation...');
-      
-      // Check for existing student name in companyEvaluations (legacy flat collection)
-      console.log('Student name for check:', studentName);
-      
-      // Method 1: Check in the legacy flat collection
-      const companyEvalsRef = collection(db, 'companyEvaluations');
-      const companyEvalsQuery = query(companyEvalsRef, where('studentName', '==', studentName));
-      const companyEvalsSnapshot = await getDocs(companyEvalsQuery);
-      
-      // Method 2: Check in the new hierarchical structure
-      // First, determine the department and normalize the student ID
-      const selectedStudentData = this.state.studentData[studentName];
-      const department = selectedStudentData.college || 'CICS';
-      const section = studentSection;
-      const studentId = selectedStudentData.studentId || '';
-      const normalizedStudentId = studentId 
-        ? studentId.replace(/[^a-zA-Z0-9]/g, '_')
-        : studentName.trim().toLowerCase().replace(/\s+/g, '_');
-      
-      console.log('Checking hierarchical structure:', `departments/${department}/sections/${section}/students/${normalizedStudentId}/evaluations`);
-      
-      // Create reference to the student's evaluations collection
-      const departmentRef = doc(db, 'departments', department);
-      const sectionsRef = collection(departmentRef, 'sections');
-      const sectionDocRef = doc(sectionsRef, section);
-      const studentsRef = collection(sectionDocRef, 'students');
-      const studentDocRef = doc(studentsRef, normalizedStudentId);
-      const evaluationsRef = collection(studentDocRef, 'evaluations');
-      
-      // Get all evaluations for this student
-      let hierarchicalSnapshot;
-      try {
-        hierarchicalSnapshot = await getDocs(evaluationsRef);
-        console.log('Hierarchical check result:', !hierarchicalSnapshot.empty);
-      } catch (error) {
-        console.log('Hierarchical structure may not exist yet, proceeding with legacy check only');
-        hierarchicalSnapshot = { empty: true };
-      }
-      
-      console.log('Student records check results:', {
-        foundInLegacyCollection: !companyEvalsSnapshot.empty,
-        foundInHierarchicalStructure: !hierarchicalSnapshot.empty
-      });
-      
-      // If found in either structure, show error
-      if (!companyEvalsSnapshot.empty || !hierarchicalSnapshot.empty) {
-        console.log('Student has already submitted a company evaluation');
-        this.setState({
-          isSubmitting: false,
-          snackbar: {
-            open: true,
-            message: 'You have already submitted a company evaluation. Each student can only submit one company evaluation.',
-            severity: 'error'
-          }
-        });
+      // Validate student hasn't already submitted for this evaluation mode
+      const isValid = await this.validateStudentInfo(studentName, sectionId);
+      if (!isValid) {
+        this.setState({ isSubmitting: false });
         return;
       }
       
@@ -384,6 +420,7 @@ class StudentAccess extends Component {
       isAuthenticated, 
       isLoadingNames,
       isLoadingSections,
+      evaluationMode,
       snackbar 
     } = this.state;
 
@@ -399,6 +436,7 @@ class StudentAccess extends Component {
           program: selectedStudentData.program || '',
           college: selectedStudentData.college || 'CICS'
         }}
+        evaluationMode={evaluationMode}
       />;
     }
 
@@ -460,6 +498,47 @@ class StudentAccess extends Component {
                 <SchoolIcon sx={{ fontSize: 18 }} />
                 Please select your section and name to verify your identity and proceed with the evaluation.
               </Typography>
+            </Box>
+
+            {/* Evaluation Mode Selection */}
+            <Box sx={{ width: '100%', mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 500 }}>
+                Evaluation Mode:
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button 
+                  variant={evaluationMode === 'MIDTERM' ? 'contained' : 'outlined'} 
+                  onClick={() => this.handleModeChange({ target: { value: 'MIDTERM' } })}
+                  sx={{
+                    flex: 1,
+                    backgroundColor: evaluationMode === 'MIDTERM' ? '#800000' : 'transparent',
+                    color: evaluationMode === 'MIDTERM' ? '#FFD700' : '#800000',
+                    borderColor: '#800000',
+                    '&:hover': {
+                      backgroundColor: evaluationMode === 'MIDTERM' ? '#600000' : 'rgba(128, 0, 0, 0.04)',
+                      borderColor: '#800000',
+                    }
+                  }}
+                >
+                  Midterm
+                </Button>
+                <Button 
+                  variant={evaluationMode === 'FINAL' ? 'contained' : 'outlined'} 
+                  onClick={() => this.handleModeChange({ target: { value: 'FINAL' } })}
+                  sx={{
+                    flex: 1,
+                    backgroundColor: evaluationMode === 'FINAL' ? '#800000' : 'transparent',
+                    color: evaluationMode === 'FINAL' ? '#FFD700' : '#800000',
+                    borderColor: '#800000',
+                    '&:hover': {
+                      backgroundColor: evaluationMode === 'FINAL' ? '#600000' : 'rgba(128, 0, 0, 0.04)',
+                      borderColor: '#800000',
+                    }
+                  }}
+                >
+                  Final
+                </Button>
+              </Box>
             </Box>
 
             {/* Section Autocomplete */}

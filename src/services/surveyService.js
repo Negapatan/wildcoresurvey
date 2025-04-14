@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp, setDoc, doc } from 'firebase/firestore';
+import { collection, serverTimestamp, setDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase-config';
 
 export const submitStudentSurvey = async (surveyData) => {
@@ -13,12 +13,15 @@ export const submitStudentSurvey = async (surveyData) => {
       schoolYear,
       semester,
       section,
-      college
+      college,
+      evaluationMode
     } = surveyData;
     
     // Ensure section has a value even if it's not provided
     const sectionValue = section || 'OJT';
     const departmentValue = college || 'CICS';
+    // Default evaluation mode to FINAL if not provided
+    const evalMode = evaluationMode || 'FINAL';
     
     // Calculate total scores
     const workAttitudeScore = Object.values(workAttitudeRatings).reduce((sum, rating) => sum + rating, 0);
@@ -35,6 +38,7 @@ export const submitStudentSurvey = async (surveyData) => {
       semester,
       section: sectionValue, // Use the ensured section value
       college: departmentValue, // Make college optional, default to 'CICS'
+      evaluationMode: evalMode, // Include evaluation mode in the document
       
       // Ratings Details
       workAttitude: {
@@ -67,30 +71,6 @@ export const submitStudentSurvey = async (surveyData) => {
 
     console.log('Submitting survey with data:', docData);
 
-    // HIERARCHICAL STRUCTURE IMPLEMENTATION
-    // 1. Get or create department document
-    const departmentRef = doc(db, 'departments', departmentValue);
-    
-    // 2. Create reference to the sections subcollection within the department
-    const sectionsRef = collection(departmentRef, 'sections');
-    
-    // 3. Get or create the specific section document within the department
-    const sectionDocRef = doc(sectionsRef, sectionValue);
-    
-    // 4. Create reference to the students subcollection within the section
-    const studentsRef = collection(sectionDocRef, 'students');
-    
-    // 5. Use the studentId as the document ID (or create a normalized student name if ID not available)
-    const normalizedStudentId = studentId 
-      ? studentId.replace(/[^a-zA-Z0-9]/g, '_')
-      : studentName.trim().toLowerCase().replace(/\s+/g, '_');
-    
-    // 6. Create reference to the specific student document
-    const studentDocRef = doc(studentsRef, normalizedStudentId);
-    
-    // 7. Create reference to the student-surveys subcollection within the student document
-    const studentSurveysRef = collection(studentDocRef, 'student-surveys');
-    
     // Generate a unique document ID for this specific submission
     let documentId;
     if (studentName && companyName) {
@@ -101,20 +81,92 @@ export const submitStudentSurvey = async (surveyData) => {
     } else {
       documentId = `survey_${Date.now()}`;
     }
+
+    // Track successful operations
+    const successfulOperations = [];
     
-    // 8. Add the survey with the custom ID in the student's surveys subcollection
-    const surveyDocRef = doc(studentSurveysRef, documentId);
-    await setDoc(surveyDocRef, docData);
+    try {
+      // PRIMARY STRUCTURE: studentSurveys_[period] collection
+      // Use a separate collection for each period
+      const studentSurveysCollectionName = `studentSurveys_${evalMode.toLowerCase()}`;
+      const studentSurveysRef = collection(db, studentSurveysCollectionName);
+      
+      // Add document directly to the period-specific collection
+      await setDoc(doc(studentSurveysRef, documentId), docData);
+      
+      successfulOperations.push('primary_structure');
+      console.log(`Successfully saved to ${studentSurveysCollectionName}/${documentId}`);
+    } catch (error) {
+      console.warn(`Error saving to primary structure ${evalMode} collection:`, error.message);
+    }
     
-    // 9. Also save to the flat studentSurveys collection for backward compatibility and easier querying
-    const legacyRef = collection(db, 'studentSurveys');
-    const legacyDocRef = doc(legacyRef, documentId);
-    await setDoc(legacyDocRef, docData);
+    // Also try saving to a combined collection with evaluation mode as a field
+    try {
+      // Save to a combined collection with evaluationMode as a field
+      const combinedCollectionRef = collection(db, 'studentSurveys');
+      await setDoc(doc(combinedCollectionRef, documentId), docData);
+      
+      successfulOperations.push('combined_collection');
+      console.log(`Successfully saved to studentSurveys/${documentId} with evaluationMode field`);
+    } catch (error) {
+      console.warn('Error saving to combined collection:', error.message);
+    }
     
-    console.log('Survey submitted successfully with ID:', documentId);
-    console.log('Saved to hierarchical structure:', `departments/${departmentValue}/sections/${sectionValue}/students/${normalizedStudentId}/student-surveys/${documentId}`);
-    
-    return documentId;
+    // Try to save to hierarchical structure as well
+    try {
+      // HIERARCHICAL STRUCTURE - try this as secondary storage
+      // 1. Get or create department document
+      const departmentRef = doc(db, 'departments', departmentValue);
+      
+      // 2. Create reference to the sections subcollection within the department
+      const sectionsRef = collection(departmentRef, 'sections');
+      
+      // 3. Get or create the specific section document within the department
+      const sectionDocRef = doc(sectionsRef, sectionValue);
+      
+      // 4. Create reference to the students subcollection within the section
+      const studentsRef = collection(sectionDocRef, 'students');
+      
+      // 5. Use the studentId as the document ID (or create a normalized student name if ID not available)
+      const normalizedStudentId = studentId 
+        ? studentId.replace(/[^a-zA-Z0-9]/g, '_')
+        : studentName.trim().toLowerCase().replace(/\s+/g, '_');
+      
+      // 6. Create reference to the specific student document
+      const studentDocRef = doc(studentsRef, normalizedStudentId);
+      
+      // 7. Create reference to the evaluations subcollection (with period in the name)
+      const evaluationsRef = collection(studentDocRef, `evaluations_${evalMode.toLowerCase()}`);
+      
+      // 8. Add the document with evaluation mode as a field
+      const surveyDocRef = doc(evaluationsRef, documentId);
+      await setDoc(surveyDocRef, docData);
+      
+      successfulOperations.push('hierarchical');
+      console.log('Successfully saved to hierarchical structure');
+    } catch (error) {
+      console.warn('Error saving to hierarchical structure:', error.message);
+    }
+
+    // If we saved to at least one location, consider it a success
+    if (successfulOperations.length > 0) {
+      console.log('Survey submitted successfully with ID:', documentId);
+      return documentId;
+    } else {
+      // If no save operations succeeded, try one more fallback approach
+      try {
+        // Fallback to original flat structure
+        const legacyRef = collection(db, 'studentSurveys_legacy');
+        const legacyDocRef = doc(legacyRef, documentId);
+        await setDoc(legacyDocRef, docData);
+        
+        console.log('Survey submitted successfully with fallback method. ID:', documentId);
+        return documentId;
+      } catch (finalError) {
+        console.error('All save attempts failed. Final error:', finalError);
+        throw new Error('Unable to save survey to any location. Please check network connection and try again.');
+      }
+    }
   } catch (error) {
     console.error('Error submitting student survey:', error);
     throw error;
@@ -205,6 +257,8 @@ export const submitCompanyEvaluation = async (surveyData) => {
       semester: surveyData.semester,
       userRole: surveyData.userRole || 'student',
       section: surveyData.section || '', // Ensure section is included
+      evaluationMode: surveyData.evaluationMode || 'FINAL', // Include evaluation mode with default
+      college: surveyData.college || 'CICS', // Include college info
 
       // Work Environment
       workEnvironment: {
@@ -287,45 +341,94 @@ export const submitCompanyEvaluation = async (surveyData) => {
       throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
     }
 
-    // First, ensure we have the department/college and section information
+    // Get the evaluation mode and other key info
     const department = surveyData.college || 'CICS';
     const section = surveyData.section || 'Unspecified';
+    const evaluationMode = surveyData.evaluationMode || 'FINAL';
 
-    // NEW HIERARCHICAL STRUCTURE:
-    // 1. Get or create department document
-    const departmentRef = doc(db, 'departments', department);
+    // Track successful operations
+    const successfulOperations = [];
+    let documentId = `company_eval_${Date.now()}`; // Create a consistent ID to use
     
-    // 2. Create reference to the sections subcollection within the department
-    const sectionsRef = collection(departmentRef, 'sections');
+    try {
+      // PRIMARY STRUCTURE: companyEvaluations_[period] collection
+      // Use a separate collection for each period
+      const companyEvalsCollectionName = `companyEvaluations_${evaluationMode.toLowerCase()}`;
+      const companyEvalsRef = collection(db, companyEvalsCollectionName);
+      
+      // Add document directly to the period-specific collection
+      await setDoc(doc(companyEvalsRef, documentId), evaluationData);
+      
+      successfulOperations.push('primary_structure');
+      console.log(`Successfully saved to ${companyEvalsCollectionName}/${documentId}`);
+    } catch (error) {
+      console.warn(`Error saving to primary structure ${evaluationMode} collection:`, error.message);
+    }
     
-    // 3. Get or create the specific section document within the department
-    const sectionDocRef = doc(sectionsRef, section);
-    
-    // 4. Create reference to the students subcollection within the section
-    const studentsRef = collection(sectionDocRef, 'students');
-    
-    // 5. Use the studentId as the document ID (or create a normalized student name if ID not available)
-    const studentDocId = surveyData.studentId 
-      ? surveyData.studentId.replace(/[^a-zA-Z0-9]/g, '_')
-      : surveyData.studentName.trim().toLowerCase().replace(/\s+/g, '_');
-    
-    // 6. Create reference to the specific student document
-    const studentDocRef = doc(studentsRef, studentDocId);
-    
-    // 7. Create reference to the evaluations subcollection within the student document
-    const evaluationsRef = collection(studentDocRef, 'evaluations');
-    
-    // 8. Add the evaluation with an auto-generated ID in the student's evaluations subcollection
-    const evalDocRef = await addDoc(evaluationsRef, evaluationData);
-    
-    // 9. Also save to the flat companyEvaluations collection for backward compatibility and easier querying
-    const legacyRef = collection(db, 'companyEvaluations');
-    await setDoc(doc(legacyRef, evalDocRef.id), evaluationData);
-    
-    console.log('Evaluation submitted successfully with ID:', evalDocRef.id);
-    console.log('Saved to hierarchical structure:', `departments/${department}/sections/${section}/students/${studentDocId}/evaluations/${evalDocRef.id}`);
-    
-    return evalDocRef.id;
+    // Also try saving to a combined collection with evaluation mode as a field
+    try {
+      // Save to a combined collection with evaluationMode as a field
+      const combinedCollectionRef = collection(db, 'companyEvaluations');
+      await setDoc(doc(combinedCollectionRef, documentId), evaluationData);
+      
+      successfulOperations.push('combined_collection');
+      console.log(`Successfully saved to companyEvaluations/${documentId} with evaluationMode field`);
+    } catch (error) {
+      console.warn('Error saving to combined collection:', error.message);
+    }
+
+    // Try to save to hierarchical structure as well
+    try {
+      // HIERARCHICAL STRUCTURE
+      // 1. Get or create department document
+      const departmentRef = doc(db, 'departments', department);
+      
+      // 2. Create reference to the sections subcollection within the department
+      const sectionsRef = collection(departmentRef, 'sections');
+      
+      // 3. Get or create the specific section document within the department
+      const sectionDocRef = doc(sectionsRef, section);
+      
+      // 4. Create reference to the students subcollection within the section
+      const studentsRef = collection(sectionDocRef, 'students');
+      
+      // 5. Use the studentId as the document ID (or create a normalized student name if ID not available)
+      const studentDocId = surveyData.studentId 
+        ? surveyData.studentId.replace(/[^a-zA-Z0-9]/g, '_')
+        : surveyData.studentName.trim().toLowerCase().replace(/\s+/g, '_');
+      
+      // 6. Create reference to the specific student document
+      const studentDocRef = doc(studentsRef, studentDocId);
+      
+      // 7. Create reference to the evaluations subcollection (with period in the name)
+      const evaluationsRef = collection(studentDocRef, `evaluations_${evaluationMode.toLowerCase()}`);
+      
+      // 8. Add the evaluation document
+      await setDoc(doc(evaluationsRef, documentId), evaluationData);
+      
+      successfulOperations.push('hierarchical');
+      console.log('Successfully saved to hierarchical structure');
+    } catch (error) {
+      console.warn('Error saving to hierarchical structure:', error.message);
+    }
+
+    // If we saved to at least one location, consider it a success
+    if (successfulOperations.length > 0) {
+      console.log('Evaluation submitted successfully with ID:', documentId);
+      return documentId;
+    } else {
+      // One final fallback attempt with a simpler approach
+      try {
+        const legacyRef = collection(db, 'companyEvaluations_legacy');
+        await setDoc(doc(legacyRef, documentId), evaluationData);
+        
+        console.log('Evaluation submitted successfully with fallback method. ID:', documentId);
+        return documentId;
+      } catch (finalError) {
+        console.error('All save attempts failed. Final error:', finalError);
+        throw new Error('Unable to save evaluation to any location. Please check permissions and network connection and try again.');
+      }
+    }
   } catch (error) {
     console.error('Error submitting company evaluation:', error);
     throw error;

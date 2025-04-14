@@ -555,6 +555,21 @@ service cloud.firestore {
     // Student Surveys Collection
     match /studentSurveys/{surveyId} {
       allow read: if true;  // Allow anyone to read
+      allow create: if false;  // Disable creation - using period-specific collections instead
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Period-specific Student Surveys Collections
+    match /studentSurveys_midterm/{surveyId} {
+      allow read: if true;  // Allow anyone to read
+      allow create: if isValidStudentSurvey();  // Use validation function
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /studentSurveys_final/{surveyId} {
+      allow read: if true;  // Allow anyone to read
       allow create: if isValidStudentSurvey();  // Use validation function
       allow update: if isAdmin();
       allow delete: if isAdmin();
@@ -570,6 +585,36 @@ service cloud.firestore {
 
     // Company Evaluations Collection Rules
     match /companyEvaluations/{surveyId} {
+      allow read: if true;
+      allow create: if false;  // Disable creation - using period-specific collections instead
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Period-specific Company Evaluations Collections
+    match /companyEvaluations_midterm/{surveyId} {
+      allow read: if true;
+      allow create: if isValidCompanyEvaluation();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /companyEvaluations_final/{surveyId} {
+      allow read: if true;
+      allow create: if isValidCompanyEvaluation();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Legacy Collections
+    match /studentSurveys_legacy/{surveyId} {
+      allow read: if true;
+      allow create: if isValidStudentSurvey();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /companyEvaluations_legacy/{surveyId} {
       allow read: if true;
       allow create: if isValidCompanyEvaluation();
       allow update: if false;

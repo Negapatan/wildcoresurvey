@@ -70,6 +70,7 @@ class CompanyAccess extends Component {
       showPassword: false,
       isSubmitting: false,
       isAuthenticated: false,
+      evaluationMode: 'FINAL', // Default to FINAL evaluation
       snackbar: {
         open: false,
         message: '',
@@ -93,6 +94,10 @@ class CompanyAccess extends Component {
     this.setState(prevState => ({
       showPassword: !prevState.showPassword
     }));
+  };
+
+  handleEvaluationModeChange = (mode) => {
+    this.setState({ evaluationMode: mode });
   };
 
   handleSubmit = async () => {
@@ -174,10 +179,10 @@ class CompanyAccess extends Component {
 
   render() {
     const { Container, AccessButton, BackButton } = StyledComponents;
-    const { accessKey, showPassword, isSubmitting, isAuthenticated, snackbar } = this.state;
+    const { accessKey, showPassword, isSubmitting, isAuthenticated, evaluationMode, snackbar } = this.state;
 
     if (isAuthenticated) {
-      return <CompanyMentorEval userRole="company" />;
+      return <CompanyMentorEval userRole="company" evaluationMode={evaluationMode} />;
     }
 
     return (
@@ -239,6 +244,47 @@ class CompanyAccess extends Component {
                 This area is restricted to company representatives only.
                 Please enter the access key provided to your organization.
               </Typography>
+            </Box>
+
+            {/* Evaluation Mode Selection */}
+            <Box sx={{ width: '100%', mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 500, textAlign: 'center' }}>
+                Select Evaluation Period:
+              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
+                <Button 
+                  variant={evaluationMode === 'MIDTERM' ? 'contained' : 'outlined'} 
+                  onClick={() => this.handleEvaluationModeChange('MIDTERM')}
+                  sx={{
+                    flex: 1,
+                    backgroundColor: evaluationMode === 'MIDTERM' ? '#800000' : 'transparent',
+                    color: evaluationMode === 'MIDTERM' ? '#FFD700' : '#800000',
+                    borderColor: '#800000',
+                    '&:hover': {
+                      backgroundColor: evaluationMode === 'MIDTERM' ? '#600000' : 'rgba(128, 0, 0, 0.04)',
+                      borderColor: '#800000',
+                    }
+                  }}
+                >
+                  Midterm
+                </Button>
+                <Button 
+                  variant={evaluationMode === 'FINAL' ? 'contained' : 'outlined'} 
+                  onClick={() => this.handleEvaluationModeChange('FINAL')}
+                  sx={{
+                    flex: 1,
+                    backgroundColor: evaluationMode === 'FINAL' ? '#800000' : 'transparent',
+                    color: evaluationMode === 'FINAL' ? '#FFD700' : '#800000',
+                    borderColor: '#800000',
+                    '&:hover': {
+                      backgroundColor: evaluationMode === 'FINAL' ? '#600000' : 'rgba(128, 0, 0, 0.04)',
+                      borderColor: '#800000',
+                    }
+                  }}
+                >
+                  Final
+                </Button>
+              </Box>
             </Box>
 
             <TextField
