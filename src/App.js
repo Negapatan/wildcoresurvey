@@ -24,13 +24,13 @@ const LogoContainer = styled(Box)(({ theme }) => ({
 }));
 
 const LogoImg = styled('img')(({ theme }) => ({
-  height: '45px',
+  height: '60px',
   transition: 'transform 0.3s ease',
   '&:hover': {
     transform: 'scale(1.05)',
   },
   [theme.breakpoints.down('sm')]: {
-    height: '35px',
+    height: '45px',
   },
 }));
 
