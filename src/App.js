@@ -118,7 +118,7 @@ function App() {
             <LogoImg src={wordlogo} alt="CIT Logo" />
             {!isMobile && (
               <NavText variant="h6">
-                On-the-Job Training Survey System
+                CIT-U ROUTE Survey System
               </NavText>
             )}
           </LogoContainer>
