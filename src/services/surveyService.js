@@ -1,5 +1,6 @@
 import { collection, serverTimestamp, setDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase-config';
+import { addDoc } from 'firebase/firestore';
 
 export const submitStudentSurvey = async (surveyData) => {
   try {
@@ -173,67 +174,49 @@ export const submitStudentSurvey = async (surveyData) => {
   }
 };
 
-export const submitCompanySurvey = async (formData) => {
+// Function to submit company survey (Interview and Assessment)
+export const submitCompanySurvey = async (surveyData) => {
   try {
-    const surveyData = {
-      surveyType: 'company',
-      meetingDate: formData.meetingDate,
-      companyName: formData.companyName,
-      studentNames: formData.studentNames,
-      overallPerformance: parseInt(formData.overallPerformance),
-      tasksAssigned: formData.tasksAssigned,
-      trainingProvided: formData.trainingProvided,
-      technicalSkills: formData.technicalSkills,
-      recommendations: formData.recommendations,
-      industryMentor: formData.industryMentor,
-      recommendToStudents: formData.recommendToStudents,
-      program: formData.program,
-      totalScore: parseInt(formData.overallPerformance),
-      maxPossibleScore: 10,
+    // Add a timestamp and evaluation information
+    const dataWithTimestamp = {
+      ...surveyData,
       submittedAt: serverTimestamp(),
-      submittedBy: 'anonymous',
-      status: 'submitted'
+      type: 'assessment',
+      evaluationPeriod: surveyData.evaluationPeriod || 'MIDTERMS'
     };
 
-    // Ensure we have the department/college information
-    const department = formData.college || 'CICS';
+    // Save to Firestore - use different collection based on evaluation period
+    const collectionName = `ojtAdvisers_${dataWithTimestamp.evaluationPeriod.toLowerCase()}`;
+    const docRef = await addDoc(collection(db, collectionName), dataWithTimestamp);
     
-    // HIERARCHICAL STRUCTURE FOR COMPANY SURVEYS:
-    // 1. Get or create department document
-    const departmentRef = doc(db, 'departments', department);
+    console.log(`Document written with ID: ${docRef.id} to ${collectionName}`);
     
-    // 2. Create reference to the companies subcollection within the department
-    const companiesRef = collection(departmentRef, 'companies');
+    // Also save to the main collection for backwards compatibility
+    await addDoc(collection(db, 'ojtAdvisers'), dataWithTimestamp);
     
-    // 3. Use the company name as the document ID
-    const normalizedCompanyName = formData.companyName
-      ? formData.companyName.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')
-      : `company_${Date.now()}`;
-    
-    // 4. Create reference to the specific company document
-    const companyDocRef = doc(companiesRef, normalizedCompanyName);
-    
-    // 5. Create reference to the surveys subcollection within the company document
-    const surveysRef = collection(companyDocRef, 'surveys');
-    
-    // 6. Generate a unique document ID for this specific submission
-    const documentId = `survey_${Date.now()}`;
-    
-    // 7. Add the survey with the unique ID in the company's surveys subcollection
-    const surveyDocRef = doc(surveysRef, documentId);
-    await setDoc(surveyDocRef, surveyData);
-    
-    // 8. Also save to the flat OJTadvisers collection for backward compatibility
-    const legacyRef = collection(db, 'OJTadvisers');
-    const legacyDocRef = doc(legacyRef, documentId);
-    await setDoc(legacyDocRef, surveyData);
-    
-    console.log('Company survey submitted successfully with ID:', documentId);
-    console.log('Saved to hierarchical structure:', `departments/${department}/companies/${normalizedCompanyName}/surveys/${documentId}`);
-    
-    return documentId;
+    return { success: true, docId: docRef.id };
   } catch (error) {
-    console.error('Error submitting company survey:', error);
+    console.error('Error adding document: ', error);
+    throw error;
+  }
+};
+
+// Function to submit concerns and solutions survey
+export const submitConcernsSurvey = async (surveyData) => {
+  try {
+    // Add a timestamp
+    const dataWithTimestamp = {
+      ...surveyData,
+      submittedAt: serverTimestamp(),
+      type: 'concerns'
+    };
+
+    // Save to Firestore
+    const docRef = await addDoc(collection(db, 'ojtAdvisers'), dataWithTimestamp);
+    console.log('Document written with ID: ', docRef.id);
+    return { success: true, docId: docRef.id };
+  } catch (error) {
+    console.error('Error adding document: ', error);
     throw error;
   }
 };

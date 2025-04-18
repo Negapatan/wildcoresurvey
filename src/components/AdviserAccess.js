@@ -19,7 +19,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { signInWithEmail, signOutUser } from '../firebase-config';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase-config';
-import OJTAdviserEval from './OJTAdviserEval';
+import AdviserDashboard from './AdviserDashboard';
 
 const StyledComponents = {
   Container: styled(Paper)(({ theme }) => ({
@@ -209,8 +209,8 @@ class AdviserAccess extends Component {
     } = this.state;
 
     if (authenticated) {
-      // Redirect to OJTAdviserEval when authenticated
-      return <OJTAdviserEval userRole={userRole} />;
+      // Redirect to AdviserDashboard when authenticated
+      return <AdviserDashboard userRole={userRole} />;
     }
 
     return (

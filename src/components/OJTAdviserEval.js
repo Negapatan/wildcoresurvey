@@ -19,6 +19,7 @@ import {
 import { styled } from '@mui/material/styles';
 import ThankYouPage from './ThankYouPage';
 import { submitCompanySurvey } from '../services/surveyService';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 // This component is for OJT advisers to evaluate companies
 // It saves data to the OJTadvisers collection
@@ -48,10 +49,32 @@ const StyledComponents = {
     borderRadius: '8px',
     fontSize: '1.1rem',
     fontWeight: 500,
-  }))
+  })),
+  
+  BackButton: styled(Button)(({ theme }) => ({
+    color: '#800000',
+    '&:hover': {
+      backgroundColor: 'rgba(128, 0, 0, 0.04)',
+    },
+  })),
+
+  PeriodButton: styled(Button)(({ theme, isActive }) => ({
+    backgroundColor: isActive ? '#800000' : 'white',
+    color: isActive ? '#FFD700' : '#800000',
+    border: '1px solid #800000',
+    borderRadius: '4px',
+    padding: theme.spacing(1.5, 4),
+    width: '180px',
+    fontWeight: 'bold',
+    fontSize: '1rem',
+    cursor: 'default',
+    '&:hover': {
+      backgroundColor: isActive ? '#800000' : 'white',
+    },
+  })),
 };
 
-class CompanySurvey extends Component {
+class OJTAdviserEval extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -67,6 +90,7 @@ class CompanySurvey extends Component {
         industryMentor: '',
         recommendToStudents: '',
         program: '',
+        evaluationPeriod: props.evaluationPeriod || 'MIDTERMS'
       },
       isSubmitting: false,
       isSubmitted: false,
@@ -111,6 +135,18 @@ class CompanySurvey extends Component {
     ];
   }
 
+  componentDidUpdate(prevProps) {
+    // Update evaluation period if prop changes
+    if (prevProps.evaluationPeriod !== this.props.evaluationPeriod) {
+      this.setState(prevState => ({
+        formData: {
+          ...prevState.formData,
+          evaluationPeriod: this.props.evaluationPeriod
+        }
+      }));
+    }
+  }
+
   // Getters and Setters
   get formData() {
     return this.state.formData;
@@ -143,6 +179,12 @@ class CompanySurvey extends Component {
   handleReturn = () => {
     window.location.reload();
   }
+
+  handleBack = () => {
+    if (this.props.onBack) {
+      this.props.onBack();
+    }
+  };
 
   validateForm() {
     const { 
@@ -203,6 +245,7 @@ class CompanySurvey extends Component {
 
     try {
       if (!this.validateForm()) {
+        this.setState({ isSubmitting: false });
         return;
       }
 
@@ -309,8 +352,9 @@ class CompanySurvey extends Component {
   }
 
   render() {
-    const { SurveySection, FormDivider, SubmitButton } = StyledComponents;
+    const { SurveySection, FormDivider, SubmitButton, BackButton, PeriodButton } = StyledComponents;
     const { isSubmitting, isSubmitted, snackbar } = this.state;
+    const { evaluationPeriod } = this.props;
 
     if (isSubmitted) {
       return <ThankYouPage 
@@ -328,7 +372,49 @@ class CompanySurvey extends Component {
         flexDirection: 'column',
         alignItems: 'center'
       }}>
+        <Box sx={{ alignSelf: 'flex-start', mb: 2 }}>
+          <BackButton
+            startIcon={<ArrowBackIcon />}
+            onClick={this.handleBack}
+          >
+            Back to Dashboard
+          </BackButton>
+        </Box>
+
         <SurveySection>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              mb: 3, 
+              color: '#555',
+              fontWeight: 500 
+            }}
+          >
+            Evaluation Mode:
+          </Typography>
+
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            mb: 4,
+            gap: 2
+          }}>
+            <PeriodButton 
+              isActive={evaluationPeriod === 'MIDTERMS'} 
+              disableRipple
+            >
+              MIDTERM
+            </PeriodButton>
+            <PeriodButton 
+              isActive={evaluationPeriod === 'FINALS'} 
+              disableRipple
+            >
+              FINAL
+            </PeriodButton>
+          </Box>
+          
+          <Divider sx={{ mb: 4 }} />
+        
           <Typography 
             variant="h4" 
             sx={{ 
@@ -338,7 +424,7 @@ class CompanySurvey extends Component {
               fontWeight: 600
             }}
           >
-            Interview and Assessment Guide
+            Visital Assessment
           </Typography>
           
           <Typography 
@@ -491,4 +577,4 @@ class CompanySurvey extends Component {
   }
 }
 
-export default CompanySurvey; 
+export default OJTAdviserEval; 
