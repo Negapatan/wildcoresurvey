@@ -87,13 +87,27 @@ const StyledComponents = {
 class ConcernsSolutions extends Component {
   constructor(props) {
     super(props);
+    
+    // Get student info from props
+    const studentInfo = this.props.studentInfo || {};
+    
     this.state = {
       formData: {
-        concerns: '',
-        solutions: '',
-        recommendations: '',
-        evaluation: ''
+        concerns: studentInfo.concerns || '',
+        solutions: studentInfo.solutions || '',
+        recommendations: studentInfo.recommendations || '',
+        evaluation: studentInfo.evaluation || '',
+        // Add student identification fields from props
+        studentName: studentInfo.studentName || studentInfo.name || '',
+        section: studentInfo.section || '',
+        college: studentInfo.college || '',
+        program: studentInfo.program || '',
+        semester: studentInfo.semester || '',
+        schoolYear: studentInfo.schoolYear || '',
+        companyName: studentInfo.companyName || studentInfo.partnerCompany || '',
+        accessKey: studentInfo.finalsKey || ''
       },
+      studentInfo: studentInfo,
       isSubmitting: false,
       isSubmitted: false,
       snackbar: {
@@ -173,13 +187,72 @@ class ConcernsSolutions extends Component {
         return;
       }
 
-      await submitConcernsSurvey(this.formData);
+      // Get the student information to include in the submission
+      const { studentInfo } = this.state;
+      const formData = {
+        ...this.formData,
+        // Student identification fields for the submission
+        studentName: studentInfo.studentName || studentInfo.name || '',
+        accessKey: studentInfo.finalsKey || studentInfo.accessKey || '',
+        // Add metadata
+        timestamp: new Date().toISOString(),
+        submittedBy: this.props.userRole || 'adviser',
+        // Store reference to student's document ID
+        studentDocId: studentInfo.id || ''
+      };
 
-      console.log('Concerns and solutions submitted successfully!');
-      this.setState({ isSubmitted: true });
+      try {
+        // Submit the concerns and solutions data
+        const result = await submitConcernsSurvey(formData);
+        console.log('Submission result:', result);
+        
+        // Consider it a success if at least the student data was updated
+        if (result.success && (result.studentDataUpdated || result.concernsSaved)) {
+          this.setState({ isSubmitted: true });
+          return;
+        } else {
+          // This would be strange - the function returned success but nothing was updated
+          throw new Error('Submission operation returned success but no data was updated');
+        }
+      } catch (submitError) {
+        console.error('Error submitting concerns to server:', submitError);
+        
+        // Check if it's a permissions error
+        if (submitError.message && submitError.message.includes('permission')) {
+          this.showError('You do not have permission to submit feedback. Please contact the administrator.');
+        } else {
+          // Try to store locally at least
+          try {
+            // Store in localStorage as a fallback
+            const localData = {
+              formData: this.formData,
+              studentInfo: {
+                name: studentInfo.studentName || studentInfo.name,
+                accessKey: studentInfo.finalsKey || studentInfo.accessKey || '',
+                docId: studentInfo.id || ''
+              },
+              timestamp: new Date().toISOString()
+            };
+            
+            // Store in localStorage
+            const localStorageKey = `concerns_data_${Date.now()}`;
+            localStorage.setItem(localStorageKey, JSON.stringify(localData));
+            
+            console.log('Stored feedback locally as fallback:', localStorageKey);
+            this.showError(
+              'Could not save to server, but your feedback was saved locally. ' +
+              'Please contact the administrator with reference: ' + localStorageKey
+            );
+          } catch (localError) {
+            // If even local storage fails
+            console.error('Complete failure to store feedback:', localError);
+            this.showError('Error submitting feedback. Please try again or contact support.');
+          }
+        }
+      }
     } catch (error) {
-      console.error('Error submitting concerns:', error);
-      this.showError('Error submitting concerns. Please try again.');
+      console.error('Error in submission process:', error);
+      this.showError('Error processing your request. Please try again.');
     } finally {
       this.setState({ isSubmitting: false });
     }
@@ -187,11 +260,11 @@ class ConcernsSolutions extends Component {
 
   render() {
     const { SurveySection, SubmitButton, BackButton, StyledTextField, SectionTitle } = StyledComponents;
-    const { isSubmitting, isSubmitted, snackbar } = this.state;
+    const { isSubmitting, isSubmitted, snackbar, studentInfo } = this.state;
 
     if (isSubmitted) {
       return <ThankYouPage 
-        surveyType="concerns" 
+        surveyType="evaluation" 
         onReturn={() => window.location.href = '/'} 
       />;
     }
@@ -236,6 +309,59 @@ class ConcernsSolutions extends Component {
               Feedback and Evaluation
             </Typography>
           </Box>
+
+          {/* Student Information Section */}
+          {studentInfo && (
+            <Box sx={{ mb: 4, backgroundColor: 'rgba(128, 0, 0, 0.03)', p: 3, borderRadius: 2, border: '1px solid rgba(128, 0, 0, 0.1)' }}>
+              <Typography variant="h6" sx={{ mb: 2, color: '#800000', fontWeight: 600 }}>
+                Student Information
+              </Typography>
+              
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" sx={{ color: '#666' }}>Student Name:</Typography>
+                  <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
+                    {studentInfo.studentName || studentInfo.name || 'N/A'}
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" sx={{ color: '#666' }}>Program:</Typography>
+                  <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
+                    {studentInfo.program || 'N/A'}
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" sx={{ color: '#666' }}>Section:</Typography>
+                  <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
+                    {studentInfo.section || 'N/A'}
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" sx={{ color: '#666' }}>Company:</Typography>
+                  <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
+                    {studentInfo.companyName || studentInfo.partnerCompany || 'N/A'}
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" sx={{ color: '#666' }}>Semester & School Year:</Typography>
+                  <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
+                    {studentInfo.semester || 'N/A'} {studentInfo.schoolYear ? `/ ${studentInfo.schoolYear}` : ''}
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" sx={{ color: '#666' }}>College:</Typography>
+                  <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
+                    {studentInfo.college || 'CICS'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
 
           <Box sx={{ mb: 5 }}>
             <Typography 
@@ -294,23 +420,22 @@ class ConcernsSolutions extends Component {
               />
             </Grid>
             <Grid item xs={12} md={6}>
-              <SectionTitle>Evaluation</SectionTitle>
+              <SectionTitle>Overall Evaluation</SectionTitle>
               <StyledTextField
                 fullWidth
                 multiline
                 rows={7}
                 name="evaluation"
-                placeholder="Assess the student's overall performance, areas of strength, and opportunities for improvement..."
+                placeholder="Provide an overall evaluation of the student's OJT performance and learning progress..."
                 value={this.formData.evaluation || ''}
                 onChange={this.handleFormChange}
                 variant="outlined"
               />
             </Grid>
           </Grid>
-          
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
             <SubmitButton
-              variant="contained"
               onClick={this.handleSubmit}
               disabled={isSubmitting}
             >
@@ -325,11 +450,7 @@ class ConcernsSolutions extends Component {
           onClose={this.handleSnackbarClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          <Alert 
-            onClose={this.handleSnackbarClose} 
-            severity={snackbar.severity}
-            sx={{ width: '100%' }}
-          >
+          <Alert onClose={this.handleSnackbarClose} severity={snackbar.severity}>
             {snackbar.message}
           </Alert>
         </Snackbar>

@@ -17,7 +17,7 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import WarningIcon from '@mui/icons-material/Warning';
 import LogoutIcon from '@mui/icons-material/Logout';
 import OJTAdviserEval from './OJTAdviserEval';
-import ConcernsSolutions from './ConcernsSolutions';
+import ConcernsSolutionsAccess from './ConcernsSolutionsAccess';
 import { signOutUser } from '../firebase-config';
 
 const StyledComponents = {
@@ -313,7 +313,7 @@ class AdviserDashboard extends Component {
           onBack={() => this.switchView('dashboard')} 
         />;
       case 'concerns':
-        return <ConcernsSolutions 
+        return <ConcernsSolutionsAccess 
           userRole={userRole} 
           onBack={() => this.switchView('dashboard')} 
         />;

@@ -12,8 +12,7 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem,
-  Autocomplete
+  MenuItem
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { submitCompanyEvaluation } from '../services/surveyService';
@@ -60,15 +59,15 @@ class CompanyEvaluation extends Component {
     
     this.state = {
       formData: {
-        companyName: '',
+        companyName: studentInfo.companyName || '',
         studentName: studentInfo.name || '',
-        studentId: studentInfo.studentId || '',
-        schoolYear: '',
-        semester: '',
+        schoolYear: studentInfo.schoolYear || '',
+        semester: studentInfo.semester || '',
         program: studentInfo.program || '',
         section: studentInfo.section || '',
         college: studentInfo.college || 'CICS',
-        evaluatorName: ''
+        studentId: studentInfo.studentId || '',
+        accessKey: '' // Store the access key used for this evaluation
       },
       workEnvironmentRatings: {},
       supportGuidanceRatings: {},
@@ -161,6 +160,60 @@ class CompanyEvaluation extends Component {
     ];
   }
 
+  componentDidMount() {
+    // Auto-fill additional data from studentInfo if available
+    const { studentInfo } = this.props;
+    
+    if (studentInfo) {
+      console.log('Auto-filling data from studentInfo:', studentInfo);
+      
+      // Create updated form data with all available fields from studentInfo
+      const updatedFormData = { ...this.state.formData };
+      
+      // Map studentInfo properties to formData
+      if (studentInfo.companyName) updatedFormData.companyName = studentInfo.companyName;
+      if (studentInfo.schoolYear) updatedFormData.schoolYear = studentInfo.schoolYear;
+      
+      // Prioritize the semester field - make sure it's properly set
+      if (studentInfo.semester) {
+        console.log(`Setting semester to: ${studentInfo.semester}`);
+        updatedFormData.semester = studentInfo.semester;
+      }
+
+      // Store the access key that was used - check the specific key fields
+      const evaluationMode = this.state.evaluationMode;
+      console.log('Current evaluation mode:', evaluationMode);
+      
+      // Check for access key in the correct field based on evaluation mode
+      const keyField = evaluationMode === 'MIDTERM' ? 'midtermsKey' : 'finalsKey';
+      
+      if (studentInfo[keyField]) {
+        updatedFormData.accessKey = studentInfo[keyField];
+        console.log(`Found and stored access key from ${keyField}:`, studentInfo[keyField]);
+      } else if (studentInfo.accessKey) {
+        // Check legacy access key field as fallback
+        updatedFormData.accessKey = studentInfo.accessKey;
+        console.log('Found and stored access key from legacy field:', studentInfo.accessKey);
+      } else {
+        console.warn('No access key found in student info:', studentInfo);
+      }
+      
+      // Make sure studentId is in our form data
+      if (studentInfo.studentId) {
+        updatedFormData.studentId = studentInfo.studentId;
+        console.log('Set student ID:', studentInfo.studentId);
+      }
+      
+      // Only update state if we have new values
+      if (Object.keys(updatedFormData).some(key => updatedFormData[key] !== this.state.formData[key])) {
+        console.log('Updating form data with:', updatedFormData);
+        this.setState({ formData: updatedFormData });
+      } else {
+        console.log('No changes to form data needed');
+      }
+    }
+  }
+
   // Getters and Setters
   get workEnvironmentRatings() {
     return this.state.workEnvironmentRatings;
@@ -234,195 +287,275 @@ class CompanyEvaluation extends Component {
 
   validateStudentId = async () => {
     try {
-      const { studentId, studentName, section, college } = this.state.formData;
-      const { evaluationMode } = this.state;
+      const { studentName, studentId, section, college, semester, accessKey } = this.state.formData;
+      console.log('Validating student info for company evaluation:', { studentName, studentId, section, college, semester, accessKey });
+      const evaluationMode = this.state.evaluationMode;
       
-      console.log('Validating student info for company evaluation:', { studentId, studentName, section, evaluationMode });
+      // Check if this is an access-key based student (pre-filled)
+      const isPrefilledStudent = this.props.studentInfo && this.props.studentInfo.studentId === studentId;
       
-      if (!studentId || !studentName) {
-        console.log('Missing student name or ID');
-        this.setState({
-          snackbar: {
-            open: true,
-            message: 'Student name and ID are required',
-            severity: 'error'
-          }
-        });
-        return false;
-      }
-      
-      if (!section || !college) {
-        console.log('Missing section or college information');
-        this.setState({
-          snackbar: {
-            open: true,
-            message: 'Section and college information are required',
-            severity: 'error'
-          }
-        });
-        return false;
-      }
-      
-      // Check period-specific collection
-      const evalMode = evaluationMode.toLowerCase();
-      const companyEvalsCollectionName = `companyEvaluations_${evalMode}`;
-      const companyEvalsRef = collection(db, companyEvalsCollectionName);
-      
-      // Query for documents with the matching studentId
-      const companyEvalsQuery = query(companyEvalsRef, where('studentId', '==', studentId));
-      const companyEvalsSnapshot = await getDocs(companyEvalsQuery);
-      
-      console.log('Student records check results:', {
-        evaluationMode,
-        foundInPeriodCollection: !companyEvalsSnapshot.empty
-      });
-      
-      if (!companyEvalsSnapshot.empty) {
-        console.log(`Student ID found in ${companyEvalsCollectionName} collection. Documents:`);
-        companyEvalsSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
+      if (!isPrefilledStudent) {
+        console.log('Student was not pre-filled from access key, performing standard validation');
         
-        this.setState({
-          snackbar: {
-            open: true,
-            message: `This student has already submitted a company evaluation for ${evaluationMode} period. Each student can only submit one ${evaluationMode.toLowerCase()} company evaluation.`,
-            severity: 'error'
-          }
-        });
-        return false;
-      }
-      
-      // Also check the combined collection as a backup
-      try {
-        const combinedCollectionRef = collection(db, 'companyEvaluations');
-        const combinedQuery = query(
-          combinedCollectionRef, 
-          where('studentId', '==', studentId),
-          where('evaluationMode', '==', evaluationMode)
-        );
-        const combinedSnapshot = await getDocs(combinedQuery);
-        
-        if (!combinedSnapshot.empty) {
-          console.log(`Student ID found in combined collection with ${evaluationMode} mode. Documents:`);
-          combinedSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
-          
-          this.setState({
-            snackbar: {
-              open: true,
-              message: `This student has already submitted a company evaluation for ${evaluationMode} period. Each student can only submit one ${evaluationMode.toLowerCase()} company evaluation.`,
-              severity: 'error'
-            }
-          });
+        if (!studentName) {
+          console.log('Missing student name');
+          this.showError('Student name is required');
           return false;
         }
-      } catch (error) {
-        console.warn('Error checking combined collection:', error);
-        // Continue with validation even if this check fails
-      }
-      
-      // Also check the legacy collection as a final backup
-      try {
-        const legacyCollectionRef = collection(db, 'companyEvaluations_legacy');
-        const legacyQuery = query(
-          legacyCollectionRef, 
-          where('studentId', '==', studentId),
-          where('evaluationMode', '==', evaluationMode)
-        );
-        const legacySnapshot = await getDocs(legacyQuery);
         
-        if (!legacySnapshot.empty) {
-          console.log(`Student ID found in legacy collection with ${evaluationMode} mode. Documents:`);
-          legacySnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
-          
-          this.setState({
-            snackbar: {
-              open: true,
-              message: `This student has already submitted a company evaluation for ${evaluationMode} period. Each student can only submit one ${evaluationMode.toLowerCase()} company evaluation.`,
-              severity: 'error'
-            }
-          });
+        if (!section) {
+          console.log('Missing section information');
+          this.showError('Section information is required');
           return false;
         }
+        
+        if (!college) {
+          console.log('Missing college information');
+          this.showError('Please select a college for this student');
+          return false;
+        }
+
+        if (!semester) {
+          console.log('Missing semester information');
+          this.showError('Semester information is required');
+          return false;
+        }
+      }
+      
+      // Determine which field to use for validation - prioritize access key if available
+      const useAccessKey = Boolean(accessKey);
+      
+      // First check if this student has already submitted an evaluation
+      try {
+        // Check in the period-specific collection
+        const collectionName = `companyEvaluations_${evaluationMode.toLowerCase()}`;
+        console.log(`Checking if ${useAccessKey ? 'access key' : 'student'} has already submitted in ${collectionName}...`);
+        
+        // Create queries based on available identifiers
+        let existingSubmissionQuery;
+        
+        if (useAccessKey) {
+          // If we have an access key, check if it's already been used
+          existingSubmissionQuery = query(
+            collection(db, collectionName),
+            where('accessKey', '==', accessKey)
+          );
+          
+          const existingSubmissionSnapshot = await getDocs(existingSubmissionQuery);
+          
+          if (!existingSubmissionSnapshot.empty) {
+            console.error(`Access key ${accessKey} has already been used for a ${evaluationMode.toLowerCase()} company evaluation.`);
+            existingSubmissionSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
+            
+            this.showError(`This access key has already been used for a ${evaluationMode.toLowerCase()} company evaluation. Each access key can only be used once.`);
+            return false;
+          }
+        } else if (studentId) {
+          // Use student ID if available and no access key
+          existingSubmissionQuery = query(
+            collection(db, collectionName),
+            where('studentId', '==', studentId),
+            where('semester', '==', semester)
+          );
+          
+          const existingSubmissionSnapshot = await getDocs(existingSubmissionQuery);
+          
+          if (!existingSubmissionSnapshot.empty) {
+            console.error(`Student ID ${studentId} has already submitted a ${evaluationMode.toLowerCase()} company evaluation for ${semester} semester.`);
+            existingSubmissionSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
+            
+            this.showError(`This student has already submitted a ${evaluationMode.toLowerCase()} company evaluation for the ${semester} semester. Each student can only submit one evaluation per semester.`);
+            return false;
+          }
+        } else if (studentName) {
+          // Fall back to student name if no ID and no access key
+          existingSubmissionQuery = query(
+            collection(db, collectionName),
+            where('studentName', '==', studentName),
+            where('semester', '==', semester)
+          );
+          
+          const existingSubmissionSnapshot = await getDocs(existingSubmissionQuery);
+          
+          if (!existingSubmissionSnapshot.empty) {
+            console.error(`Student ${studentName} has already submitted a ${evaluationMode.toLowerCase()} company evaluation for ${semester} semester.`);
+            existingSubmissionSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
+            
+            this.showError(`This student has already submitted a ${evaluationMode.toLowerCase()} company evaluation for the ${semester} semester. Each student can only submit one evaluation per semester.`);
+            return false;
+          }
+        }
       } catch (error) {
-        console.warn('Error checking legacy collection:', error);
-        // Continue with validation even if legacy check fails
+        console.warn('Error checking for existing student submissions:', error);
+        // Continue with other validation
+      }
+      
+      // Check if this student has any access key-based submission in studentData collection
+      if (studentId || studentName) {
+        try {
+          const studentDataRef = collection(db, 'studentData');
+          let studentQuery;
+          
+          if (studentId) {
+            studentQuery = query(
+              studentDataRef,
+              where('studentId', '==', studentId),
+              where('evaluationMode', '==', evaluationMode),
+              where('semester', '==', semester)
+            );
+          } else {
+            studentQuery = query(
+              studentDataRef,
+              where('studentName', '==', studentName),
+              where('evaluationMode', '==', evaluationMode),
+              where('semester', '==', semester)
+            );
+          }
+          
+          const studentSnapshot = await getDocs(studentQuery);
+          
+          if (!studentSnapshot.empty) {
+            const studentDoc = studentSnapshot.docs[0];
+            const studentData = studentDoc.data();
+            
+            if (studentData.hasSubmitted) {
+              console.error(`Student ${studentName || studentId} has already submitted an evaluation for ${semester}.`);
+              this.showError(`This student has already submitted a ${evaluationMode.toLowerCase()} company evaluation for the ${semester} semester. Each student can only submit one evaluation per semester.`);
+              return false;
+            }
+          }
+        } catch (error) {
+          console.warn('Error checking studentData collection:', error);
+          // Continue with other validation
+        }
       }
       
       return true;
     } catch (error) {
-      console.error('Error validating student ID:', error);
-      this.setState({
-        snackbar: {
-          open: true,
-          message: `Error validating student information: ${error.message}`,
-          severity: 'error'
-        }
-      });
+      console.error('Error validating student information:', error);
+      this.showError(`Error validating student information: ${error.message}`);
       return false;
     }
   }
 
-  handleSubmit = async () => {
-    if (!this.validateForm()) return;
-
-    const isValidId = await this.validateStudentId();
-    if (!isValidId) return;
-
-    this.setState({ isSubmitting: true });
-
-    try {
-      // Get college info from props or state
-      const college = this.props.studentInfo?.college || this.state.formData.college || 'CICS';
-      const { evaluationMode } = this.state;
+  validateForm = () => {
+    const { companyName, studentName, program, section, schoolYear, semester } = this.state.formData;
+    
+    console.log('Validating form with section:', section);
+    console.log('Company name value:', companyName);
+    
+    if (!companyName || !studentName || !program || !section || !schoolYear || !semester) {
+      const missingFields = [];
+      if (!companyName) missingFields.push('Company Name');
+      if (!studentName) missingFields.push('Student Name');
+      if (!program) missingFields.push('Program');
+      if (!section) missingFields.push('Section');
+      if (!schoolYear) missingFields.push('School Year');
+      if (!semester) missingFields.push('Semester');
       
-      // Prepare the evaluation data with the proper format for companyEvaluations
-      const surveyData = {
-        companyName: this.state.formData.companyName,
-        studentName: this.state.formData.studentName,
-        studentId: this.state.formData.studentId,
-        program: this.state.formData.program,
-        schoolYear: this.state.formData.schoolYear,
-        semester: this.state.formData.semester,
-        section: this.state.formData.section,
-        college: college, // Ensure college is included
-        evaluationMode: evaluationMode, // Include evaluation mode
-        userRole: this.state.userRole,
-        
-        // Work Environment metrics
-        workstation: this.getAverageRating(this.workEnvironmentRatings),
-        resources: this.getAverageRating(this.supportGuidanceRatings), 
-        safety: this.getAverageRating(this.workPerformanceRatings),
-        workload: this.getAverageRating(this.overallExperienceRatings),
-        
-        // Performance Support metrics
-        supervision: this.getAverageRating(this.workEnvironmentRatings),
-        feedback: this.getAverageRating(this.supportGuidanceRatings),
-        training: this.getAverageRating(this.workPerformanceRatings),
-        mentorship: this.getAverageRating(this.overallExperienceRatings),
-        
-        // Experience Quality metrics
-        relevance: this.getAverageRating(this.workEnvironmentRatings),
-        skills: this.getAverageRating(this.supportGuidanceRatings),
-        growth: this.getAverageRating(this.workPerformanceRatings),
-        satisfaction: this.getAverageRating(this.overallExperienceRatings),
-      };
+      this.showError(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      return false;
+    }
+    
+    // Ensure at least 80% of rating items are completed
+    const workEnvironmentCompleted = Object.values(this.workEnvironmentRatings).filter(Boolean).length;
+    const supportGuidanceCompleted = Object.values(this.supportGuidanceRatings).filter(Boolean).length;
+    const workPerformanceCompleted = Object.values(this.workPerformanceRatings).filter(Boolean).length;
+    const overallExperienceCompleted = Object.values(this.overallExperienceRatings).filter(Boolean).length;
+    
+    const totalItems = this.workEnvironmentItems.length + this.supportGuidanceItems.length + 
+                       this.workPerformanceItems.length + this.overallExperienceItems.length;
+    const completedItems = workEnvironmentCompleted + supportGuidanceCompleted + 
+                          workPerformanceCompleted + overallExperienceCompleted;
+    
+    const completionRate = completedItems / totalItems;
+    
+    console.log('Rating completion rate:', {
+      total: totalItems,
+      completed: completedItems,
+      rate: completionRate
+    });
+    
+    if (completionRate < 0.8) {
+      this.showError('Please complete at least 80% of the rating items');
+      return false;
+    }
+    
+    return true;
+  }
 
-      // Use the correct service function for companyEvaluations
-      console.log('Submitting company evaluation', surveyData);
-      await submitCompanyEvaluation(surveyData);
-      this.setState({ isSubmitted: true });
+  // Helper method to show error messages consistently
+  showError = (message) => {
+    this.setState({
+      snackbar: {
+        open: true,
+        message: message,
+        severity: 'error'
+      }
+    });
+  }
+
+  handleSubmit = async () => {
+    // Validate form before submission
+    if (!this.validateForm()) {
+      return;
+    }
+    
+    // Add validation for student info including access key check
+    const isValidStudentInfo = await this.validateStudentId();
+    if (!isValidStudentInfo) {
+      return;
+    }
+    
+    this.setState({ isSubmitting: true });
+    
+    try {
+      const { formData, workEnvironmentRatings, supportGuidanceRatings, workPerformanceRatings, overallExperienceRatings, evaluationMode } = this.state;
+      
+      // Log explicitly what access key is being used
+      console.log('Using access key for submission:', formData.accessKey || 'No access key');
+      
+      // Prepare data for submission
+      const submissionData = {
+        ...formData,
+        workEnvironmentRatings,
+        supportGuidanceRatings,
+        workPerformanceRatings,
+        overallExperienceRatings,
+        evaluationMode,
+        // Ensure accessKey is explicitly included
+        accessKey: formData.accessKey || ''
+      };
+      
+      console.log('Submitting company evaluation:', submissionData);
+      console.log('Access Key used:', formData.accessKey);
+      
+      // Submit data using the service
+      const documentId = await submitCompanyEvaluation(submissionData);
+      
+      console.log('Successfully submitted with ID:', documentId);
+      
+      this.setState({
+        isSubmitted: true,
+        snackbar: {
+          open: true,
+          message: 'Thank you! Your evaluation has been submitted successfully.',
+          severity: 'success'
+        }
+      });
     } catch (error) {
       console.error('Error submitting evaluation:', error);
+      
       this.setState({
         snackbar: {
           open: true,
-          message: error.message || 'Error submitting evaluation. Please try again.',
+          message: `Error submitting evaluation: ${error.message}`,
           severity: 'error'
-        }
+        },
+        isSubmitting: false
       });
-    } finally {
-      this.setState({ isSubmitting: false });
     }
-  }
+  };
 
   handleFormChange = (event) => {
     const { name, value } = event.target;
@@ -473,42 +606,6 @@ class CompanyEvaluation extends Component {
         studentId: value
       }
     }));
-  }
-
-  validateForm() {
-    const { companyName, studentName, studentId, schoolYear, semester, program } = this.state.formData;
-    
-    if (!companyName || !studentName || !studentId || !schoolYear || !semester || !program) {
-      this.setState({
-        snackbar: {
-          open: true,
-          message: 'Please fill in all required fields',
-          severity: 'error'
-        }
-      });
-      return false;
-    }
-
-    const sections = [
-      this.workEnvironmentRatings,
-      this.supportGuidanceRatings,
-      this.workPerformanceRatings,
-      this.overallExperienceRatings
-    ];
-
-    for (const section of sections) {
-      if (Object.keys(section).length === 0) {
-        this.setState({
-          snackbar: {
-            open: true,
-            message: 'Please rate all sections before submitting',
-            severity: 'error'
-          }
-        });
-        return false;
-      }
-    }
-    return true;
   }
 
   getAverageRating = (ratings) => {
@@ -621,6 +718,7 @@ class CompanyEvaluation extends Component {
             onChange={this.handleFormChange}
             required
             fullWidth
+            disabled={hasStudentInfo && formData.companyName}
             sx={{
               '& .MuiOutlinedInput-root': {
                 '&:hover fieldset': {
@@ -713,18 +811,8 @@ class CompanyEvaluation extends Component {
             </>
           )}
 
-          <TextField
-            label="Student ID Number"
-            name="studentId"
-            value={formData.studentId}
-            onChange={this.handleStudentIdChange}
-            required
+          <FormControl 
             fullWidth
-            disabled={hasStudentInfo && formData.studentId}
-            inputProps={{
-              maxLength: 11,
-              pattern: "\\d{2}-\\d{4}-\\d{3}"
-            }}
             sx={{
               '& .MuiOutlinedInput-root': {
                 '&:hover fieldset': {
@@ -738,117 +826,89 @@ class CompanyEvaluation extends Component {
                 '&.Mui-focused': {
                   color: '#800000'
                 }
-              },
-              '& .MuiFormHelperText-root': {
-                color: 'text.secondary',
-                marginLeft: 1
               }
             }}
-          />
+          >
+            <InputLabel>School Year</InputLabel>
+            <Select
+              name="schoolYear"
+              value={formData.schoolYear}
+              onChange={this.handleFormChange}
+              label="School Year"
+              required
+              disabled={hasStudentInfo && formData.schoolYear}
+            >
+              {schoolYears.map(year => (
+                <MenuItem key={year} value={year}>{year}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <FormControl fullWidth required>
-              <InputLabel 
-                id="school-year-label"
-                sx={{
-                  '&.Mui-focused': {
-                    color: '#800000'
-                  }
-                }}
-              >
-                School Year
-              </InputLabel>
-              <Select
-                labelId="school-year-label"
-                name="schoolYear"
-                value={formData.schoolYear}
-                onChange={this.handleFormChange}
-                label="School Year"
-                sx={{
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    '&:hover': {
-                      borderColor: '#800000'
-                    }
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#800000'
-                  }
-                }}
-              >
-                {schoolYears.map(year => (
-                  <MenuItem key={year} value={year}>{year}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth required>
-              <InputLabel 
-                id="semester-label"
-                sx={{
-                  '&.Mui-focused': {
-                    color: '#800000'
-                  }
-                }}
-              >
-                Semester
-              </InputLabel>
-              <Select
-                labelId="semester-label"
-                name="semester"
-                value={formData.semester}
-                onChange={this.handleFormChange}
-                label="Semester"
-                sx={{
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    '&:hover': {
-                      borderColor: '#800000'
-                    }
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#800000'
-                  }
-                }}
-              >
-                {semesters.map(sem => (
-                  <MenuItem key={sem.value} value={sem.value}>
-                    {sem.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-
-          <Autocomplete
-            options={this.PROGRAMS}
-            value={formData.program}
-            onChange={(event, newValue) => {
-              this.handleFormChange({
-                target: { name: 'program', value: newValue }
-              });
+          <FormControl 
+            fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': {
+                  borderColor: '#800000',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#800000',
+                }
+              },
+              '& .MuiInputLabel-root': {
+                '&.Mui-focused': {
+                  color: '#800000'
+                }
+              }
             }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Program"
-                required
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    '&:hover fieldset': {
-                      borderColor: '#800000',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#800000',
-                    }
-                  },
-                  '& .MuiInputLabel-root': {
-                    '&.Mui-focused': {
-                      color: '#800000'
-                    }
-                  }
-                }}
-              />
-            )}
-          />
+          >
+            <InputLabel>Semester</InputLabel>
+            <Select
+              name="semester"
+              value={formData.semester}
+              onChange={this.handleFormChange}
+              label="Semester"
+              required
+              disabled={hasStudentInfo && formData.semester}
+            >
+              {semesters.map(sem => (
+                <MenuItem key={sem.value} value={sem.value}>{sem.label}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl 
+            fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': {
+                  borderColor: '#800000',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#800000',
+                }
+              },
+              '& .MuiInputLabel-root': {
+                '&.Mui-focused': {
+                  color: '#800000'
+                }
+              }
+            }}
+          >
+            <InputLabel>Program</InputLabel>
+            <Select
+              name="program"
+              value={formData.program}
+              onChange={this.handleFormChange}
+              label="Program"
+              required
+              disabled={hasStudentInfo && formData.program}
+            >
+              {this.PROGRAMS.map(program => (
+                <MenuItem key={program} value={program}>{program}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Stack>
       </SurveySection>
     );
@@ -862,13 +922,20 @@ class CompanyEvaluation extends Component {
     const { 
       isSubmitting, 
       isSubmitted, 
-      snackbar 
+      snackbar,
+      evaluationMode
     } = this.state;
 
     if (isSubmitted) {
       return <ThankYouPage 
         surveyType="evaluation" 
+        evaluationMode={evaluationMode}
         onReturn={() => window.location.href = '/'} 
+        onBackToAccess={this.props.onBack ? this.props.onBack : () => {
+          // Navigate back to the appropriate access page based on user role
+          const userRole = this.state.userRole || 'student';
+          window.location.href = `/?role=${userRole}`;
+        }}
       />;
     }
 

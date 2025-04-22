@@ -3,7 +3,7 @@ import { Box, Typography, Button, Fade, Grow, Paper, Stack } from '@mui/material
 import { styled } from '@mui/material/styles';
 import PropTypes from 'prop-types';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import KeyIcon from '@mui/icons-material/Key';
 
 const StyledComponents = {
   ThankYouButton: styled(Button)(({ theme }) => ({
@@ -157,9 +157,12 @@ class ThankYouPage extends Component {
     }
   }
 
-  handleMakeAnother = () => {
-    if (this.props.onMakeAnother) {
-      this.props.onMakeAnother(this.evaluationMode);
+  handleBackToAccess = () => {
+    if (this.props.onBackToAccess) {
+      this.props.onBackToAccess();
+    } else {
+      // If no specific handler is provided, navigate to the start page
+      window.location.href = '/';
     }
   }
 
@@ -175,7 +178,7 @@ class ThankYouPage extends Component {
       SubMessage 
     } = StyledComponents;
     const messageContent = this.message;
-    const { surveyType, onMakeAnother, evaluationMode } = this.props;
+    const { evaluationMode } = this.props;
 
     return (
       <Container>
@@ -226,17 +229,16 @@ class ThankYouPage extends Component {
               )}
 
               <Stack spacing={1} sx={{ width: '100%', alignItems: 'center' }}>
-                {surveyType === 'company' && onMakeAnother && (
-                  <SecondaryButton
-                    variant="contained"
-                    size="large"
-                    onClick={this.handleMakeAnother}
-                    startIcon={<AddCircleOutlineIcon />}
-                  >
-                    Evaluate Another Student
-                  </SecondaryButton>
-                )}
-
+                {/* New button to return to access page */}
+                <SecondaryButton
+                  variant="contained"
+                  size="large"
+                  onClick={this.handleBackToAccess}
+                  startIcon={<KeyIcon />}
+                >
+                  Enter Another Access Key
+                </SecondaryButton>
+                
                 <ThankYouButton 
                   variant="contained"
                   size="large"
@@ -257,8 +259,8 @@ class ThankYouPage extends Component {
 ThankYouPage.propTypes = {
   surveyType: PropTypes.oneOf(['student', 'company', 'evaluation']).isRequired,
   evaluationMode: PropTypes.string, // Add prop type for evaluationMode
-  onMakeAnother: PropTypes.func,
-  onReturn: PropTypes.func
+  onReturn: PropTypes.func,
+  onBackToAccess: PropTypes.func
 };
 
 export default ThankYouPage; 

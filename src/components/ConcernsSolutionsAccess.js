@@ -13,13 +13,13 @@ import {
   IconButton
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import SchoolIcon from '@mui/icons-material/School';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import SecurityIcon from '@mui/icons-material/Security';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { collection, query, getDocs, where } from 'firebase/firestore';
 import { db } from '../firebase-config';
-import StudentsEval from './StudentsEval';
+import ConcernsSolutions from './ConcernsSolutions';
 
 const StyledComponents = {
   Container: styled(Paper)(({ theme }) => ({
@@ -63,7 +63,7 @@ const StyledComponents = {
   }))
 };
 
-class StudentAccess extends Component {
+class ConcernsSolutionsAccess extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -72,21 +72,12 @@ class StudentAccess extends Component {
       isSubmitting: false,
       isAuthenticated: false,
       studentData: null,
-      evaluationMode: 'FINAL', // Default to FINAL evaluation
       snackbar: {
         open: false,
         message: '',
         severity: 'error'
       }
     };
-  }
-
-  componentDidMount() {
-    // No initialization needed
-  }
-
-  componentWillUnmount() {
-    // No cleanup needed
   }
 
   handleAccessKeyChange = (e) => {
@@ -99,10 +90,6 @@ class StudentAccess extends Component {
     }));
   };
 
-  handleModeChange = (mode) => {
-    this.setState({ evaluationMode: mode });
-  };
-
   validateAccessKey = async (accessKey) => {
     try {
       // Clean up the access key - trim whitespace
@@ -112,22 +99,21 @@ class StudentAccess extends Component {
         return { valid: false, error: 'Please enter an access key' };
       }
 
-      console.log('Validating access key:', cleanKey);
-      const { evaluationMode } = this.state;
+      console.log('Validating access key for concerns and solutions:', cleanKey);
       
-      // Use only the correct key field names from the database
-      const keyField = evaluationMode === 'MIDTERM' ? 'midtermsKey' : 'finalsKey';
+      // Only use FINAL access keys for concerns and solutions
+      const keyField = 'finalsKey';
       
-      console.log(`Using key field: ${keyField} for ${evaluationMode} evaluation`);
+      console.log(`Using key field: ${keyField} for FINAL concerns and solutions`);
       
       // Step 1: Find the student associated with this access key in studentData collection
       let studentInfo = null;
       
       try {
-        // Check studentData collection first - THIS IS THE PRIMARY SOURCE
+        // Check studentData collection
         const studentDataRef = collection(db, 'studentData');
         
-        // Query using the correct key field
+        // Query using the final key field
         const keyQuery = query(studentDataRef, where(keyField, '==', cleanKey));
         const keySnapshot = await getDocs(keyQuery);
         
@@ -137,7 +123,6 @@ class StudentAccess extends Component {
           studentInfo = {
             ...studentData,
             id: studentDoc.id,
-            studentId: studentData.studentId || studentData.id || '',
             studentName: studentData.name || studentData.studentName || 'Unknown Student',
             section: studentData.section || '',
             college: studentData.college || 'CICS',
@@ -145,10 +130,12 @@ class StudentAccess extends Component {
             companyName: studentData.partnerCompany || studentData.companyName || '',
             schoolYear: studentData.schoolYear || '',
             semester: studentData.semester || '',
-            evaluationMode: evaluationMode
+            finalsKey: studentData.finalsKey || cleanKey,
+            // Additional fields for concerns and solutions
+            concernsRecommendations: studentData.concernsRecommendations || {}
           };
           
-          console.log(`Found student ${studentInfo.studentName} (ID: ${studentInfo.studentId}) associated with this access key using ${keyField}`);
+          console.log(`Found student ${studentInfo.studentName} associated with this access key using ${keyField}`);
         } else {
           // Fallback to check legacy accessKey field
           const legacyQuery = query(studentDataRef, where('accessKey', '==', cleanKey));
@@ -160,7 +147,6 @@ class StudentAccess extends Component {
             studentInfo = {
               ...studentData,
               id: studentDoc.id,
-              studentId: studentData.studentId || studentData.id || '',
               studentName: studentData.name || studentData.studentName || 'Unknown Student',
               section: studentData.section || '',
               college: studentData.college || 'CICS',
@@ -168,10 +154,12 @@ class StudentAccess extends Component {
               companyName: studentData.partnerCompany || studentData.companyName || '',
               schoolYear: studentData.schoolYear || '',
               semester: studentData.semester || '',
-              evaluationMode: evaluationMode
+              finalsKey: studentData.finalsKey || cleanKey,
+              // Additional fields for concerns and solutions
+              concernsRecommendations: studentData.concernsRecommendations || {}
             };
             
-            console.log(`Found student ${studentInfo.studentName} (ID: ${studentInfo.studentId}) associated with this access key using legacy accessKey field`);
+            console.log(`Found student ${studentInfo.studentName} associated with this access key using legacy accessKey field`);
           }
         }
         
@@ -180,97 +168,14 @@ class StudentAccess extends Component {
           console.log('No student record found with this access key');
           return { valid: false, error: 'Invalid access key. Please check and try again.' };
         }
+
+        // Step 3: Access key is valid and we have the student data
+        console.log('Access key valid, returning student data for concerns and solutions:', studentInfo);
+        return { valid: true, data: studentInfo };
       } catch (error) {
         console.error('Error finding student associated with access key:', error);
         return { valid: false, error: `Error validating access key: ${error.message}` };
       }
-      
-      // Step 2: Check if this student has already submitted a company evaluation
-      try {
-        const studentName = studentInfo.studentName;
-        const studentId = studentInfo.studentId;
-        
-        // Check only the specific collection based on evaluation mode
-        const evalCollectionName = `companyEvaluations_${evaluationMode.toLowerCase()}`;
-        console.log(`Checking if student has already submitted in ${evalCollectionName}...`);
-        
-        const evalsRef = collection(db, evalCollectionName);
-        let existingSubmissionQuery;
-        
-        if (studentId) {
-          // Prefer using studentId if available
-          existingSubmissionQuery = query(
-            evalsRef,
-            where('studentId', '==', studentId)
-          );
-        } else {
-          // Fall back to student name if no ID
-          existingSubmissionQuery = query(
-            evalsRef,
-            where('studentName', '==', studentName)
-          );
-        }
-        
-        const existingSubmissionSnapshot = await getDocs(existingSubmissionQuery);
-        
-        if (!existingSubmissionSnapshot.empty) {
-          console.log(`Student ${studentName} has already submitted a ${evaluationMode.toLowerCase()} company evaluation.`);
-          existingSubmissionSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
-          
-          // Instead of returning an error, return data with alreadySubmitted flag
-          const previousSubmission = existingSubmissionSnapshot.docs[0].data();
-          const submissionDate = previousSubmission.timestamp || previousSubmission.createdAt || 'a previous date';
-          
-          return { 
-            valid: true, 
-            alreadySubmitted: true,
-            data: studentInfo,
-            previousData: {
-              submittedOn: submissionDate,
-              surveyId: existingSubmissionSnapshot.docs[0].id
-            },
-            message: `This student has already submitted a ${evaluationMode.toLowerCase()} company evaluation on ${submissionDate}.`
-          };
-        }
-        
-        // Also check if this specific access key has been used
-        const keyUsageQuery = query(
-          evalsRef,
-          where('accessKey', '==', cleanKey)
-        );
-        
-        const keyUsageSnapshot = await getDocs(keyUsageQuery);
-        
-        if (!keyUsageSnapshot.empty) {
-          console.log(`Access key ${cleanKey} has already been used for a ${evaluationMode.toLowerCase()} company evaluation.`);
-          keyUsageSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
-          
-          // Return with alreadySubmitted flag
-          const previousSubmission = keyUsageSnapshot.docs[0].data();
-          const submissionDate = previousSubmission.timestamp || previousSubmission.createdAt || 'a previous date';
-          const submitterName = previousSubmission.studentName || 'a student';
-          
-          return { 
-            valid: true, 
-            alreadySubmitted: true,
-            data: studentInfo,
-            previousData: {
-              submittedOn: submissionDate,
-              surveyId: keyUsageSnapshot.docs[0].id,
-              studentName: submitterName
-            },
-            message: `This access key has already been used for a ${evaluationMode.toLowerCase()} company evaluation by ${submitterName} on ${submissionDate}.`
-          };
-        }
-      } catch (error) {
-        console.warn('Error checking for existing submissions:', error);
-        // Log error but continue with the flow if this check fails
-      }
-      
-      // Step 3: If we've gotten this far, the key is valid and student has not submitted yet
-      console.log('Access key valid, returning student data for evaluation:', studentInfo);
-      return { valid: true, data: studentInfo };
-      
     } catch (error) {
       console.error('Error validating access key:', error);
       return { valid: false, error: `Error validating access key: ${error.message}` };
@@ -297,22 +202,6 @@ class StudentAccess extends Component {
       const result = await this.validateAccessKey(accessKey);
       
       if (result.valid) {
-        if (result.alreadySubmitted) {
-          // Handle the case where the evaluation has already been submitted
-          const { evaluationMode } = this.state;
-          const periodText = evaluationMode.toLowerCase() === 'midterm' ? 'midterm' : 'final';
-          
-          this.setState({
-            isSubmitting: false,
-            snackbar: {
-              open: true,
-              message: result.message || `This access key has already been used for a ${periodText} company evaluation.`,
-              severity: 'info'
-            }
-          });
-          return;
-        }
-        
         this.setState({
           isAuthenticated: true,
           studentData: result.data,
@@ -367,7 +256,6 @@ class StudentAccess extends Component {
     const { 
       isSubmitting, 
       isAuthenticated, 
-      evaluationMode,
       snackbar,
       accessKey,
       showPassword,
@@ -375,9 +263,9 @@ class StudentAccess extends Component {
     } = this.state;
 
     if (isAuthenticated && studentData) {
-      return <StudentsEval 
+      return <ConcernsSolutions 
         studentInfo={studentData}
-        evaluationMode={evaluationMode}
+        userRole={this.props.userRole}
         onBack={this.handleBack}
       />;
     }
@@ -398,64 +286,48 @@ class StudentAccess extends Component {
             gap: 1.5, 
             mb: 2
           }}>
-            <SchoolIcon sx={{ fontSize: 28, color: '#800000' }} />
+            <AssignmentIcon sx={{ fontSize: 28, color: '#800000' }} />
             <Typography variant="h4" sx={{ 
               color: '#800000', 
               fontWeight: 600,
               fontSize: '1.6rem'
             }}>
-              Student Evaluation Access
+              Student Concerns & Solutions
             </Typography>
           </Box>
 
-          <Box sx={{ width: '100%', mb: 3 }}>
-            {/* Evaluation Mode Selection */}
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 500, textAlign: 'center' }}>
-              Evaluation Mode:
+          <Box sx={{
+            backgroundColor: 'rgba(128, 0, 0, 0.05)',
+            borderRadius: '8px',
+            p: 2,
+            mb: 3,
+            width: '100%',
+            border: '1px solid rgba(128, 0, 0, 0.1)',
+          }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: '#800000',
+                textAlign: 'center',
+                fontStyle: 'italic',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 1,
+                fontWeight: 500
+              }}
+            >
+              <SecurityIcon sx={{ fontSize: 18 }} />
+              Please enter the student's FINAL access key to record concerns, solutions, 
+              and recommendations for this student.
             </Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
-              <Button 
-                variant={evaluationMode === 'MIDTERM' ? 'contained' : 'outlined'} 
-                onClick={() => this.handleModeChange('MIDTERM')}
-                sx={{
-                  flex: 1,
-                  maxWidth: 150,
-                  backgroundColor: evaluationMode === 'MIDTERM' ? '#800000' : 'transparent',
-                  color: evaluationMode === 'MIDTERM' ? '#FFD700' : '#800000',
-                  borderColor: '#800000',
-                  '&:hover': {
-                    backgroundColor: evaluationMode === 'MIDTERM' ? '#600000' : 'rgba(128, 0, 0, 0.04)',
-                    borderColor: '#800000',
-                  }
-                }}
-              >
-                Midterm
-              </Button>
-              <Button 
-                variant={evaluationMode === 'FINAL' ? 'contained' : 'outlined'} 
-                onClick={() => this.handleModeChange('FINAL')}
-                sx={{
-                  flex: 1,
-                  maxWidth: 150,
-                  backgroundColor: evaluationMode === 'FINAL' ? '#800000' : 'transparent',
-                  color: evaluationMode === 'FINAL' ? '#FFD700' : '#800000',
-                  borderColor: '#800000',
-                  '&:hover': {
-                    backgroundColor: evaluationMode === 'FINAL' ? '#600000' : 'rgba(128, 0, 0, 0.04)',
-                    borderColor: '#800000',
-                  }
-                }}
-              >
-                Final
-              </Button>
-            </Box>
           </Box>
 
           {/* Access Key Input Form */}
           <Box sx={{ width: '100%', mt: 2 }}>
             <TextField
               fullWidth
-              label="Access Key"
+              label="Student Access Key"
               variant="outlined"
               value={accessKey || ''}
               onChange={this.handleAccessKeyChange}
@@ -498,7 +370,7 @@ class StudentAccess extends Component {
 
             <Box sx={{ mt: 1, mb: 3 }}>
               <Typography variant="caption" color="text.secondary">
-                Enter the access key provided to you to access your evaluation form.
+                Enter the student's FINAL access key to view and update their information.
               </Typography>
             </Box>
 
@@ -520,14 +392,14 @@ class StudentAccess extends Component {
                       left: 'calc(50% - 12px)',
                     }} 
                   />
-                  <span style={{ visibility: 'hidden' }}>Access Survey</span>
+                  <span style={{ visibility: 'hidden' }}>Access Student Data</span>
                 </>
-              ) : 'Access Survey'}
+              ) : 'Access Student Data'}
             </AccessButton>
           </Box>
 
           <BackButton onClick={this.handleBack}>
-            Back to Survey Options
+            Back to Dashboard
           </BackButton>
         </Container>
 
@@ -546,4 +418,4 @@ class StudentAccess extends Component {
   }
 }
 
-export default StudentAccess; 
+export default ConcernsSolutionsAccess; 

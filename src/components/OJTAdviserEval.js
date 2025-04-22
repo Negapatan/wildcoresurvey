@@ -186,6 +186,22 @@ class OJTAdviserEval extends Component {
     }
   };
 
+  handleRecommendationChange = (event) => {
+    const value = event.target.value;
+    console.log(`Recommendation changed to: ${value}`);
+    
+    // Directly update the state with the new recommendation value
+    this.setState(prevState => ({
+      formData: {
+        ...prevState.formData,
+        recommendToStudents: value
+      }
+    }), () => {
+      // Log the updated state after it's been set
+      console.log(`Updated formData.recommendToStudents = ${this.state.formData.recommendToStudents}`);
+    });
+  }
+
   validateForm() {
     const { 
       meetingDate,
@@ -200,6 +216,8 @@ class OJTAdviserEval extends Component {
       industryMentor,
       recommendToStudents
     } = this.formData;
+
+    console.log("Validation - recommendToStudents:", recommendToStudents);
 
     if (!meetingDate || !companyName || !studentNames || !program || !overallPerformance || !tasksAssigned || !trainingProvided || !technicalSkills || !recommendations || !industryMentor || !recommendToStudents) {
       this.showError('Please fill in all required fields');
@@ -221,8 +239,9 @@ class OJTAdviserEval extends Component {
     }
 
     // Check recommendation selection
-    if (!recommendToStudents) {
+    if (!recommendToStudents || !['yes', 'no'].includes(recommendToStudents)) {
       this.showError('Please select whether you would recommend this to other Students');
+      console.log("Invalid recommendation value:", recommendToStudents);
       return false;
     }
 
@@ -249,7 +268,14 @@ class OJTAdviserEval extends Component {
         return;
       }
 
-      await submitCompanySurvey(this.formData);
+      // Create a copy of form data to ensure it's not modified unexpectedly
+      const submissionData = { ...this.formData };
+      
+      // Log the form data before submission for debugging
+      console.log('Submitting form data:', JSON.stringify(submissionData, null, 2));
+      console.log('Recommendation value:', submissionData.recommendToStudents);
+      
+      await submitCompanySurvey(submissionData);
 
       console.log('Survey submitted successfully!');
       this.setState({ isSubmitted: true });
@@ -516,13 +542,23 @@ class OJTAdviserEval extends Component {
               <RadioGroup
                 name="recommendToStudents"
                 value={this.formData.recommendToStudents || ''}
-                onChange={this.handleFormChange}
+                onChange={this.handleRecommendationChange}
                 sx={{ flexDirection: 'row', gap: 4 }}
               >
                 <FormControlLabel 
                   value="yes" 
                   control={
                     <Radio 
+                      checked={this.formData.recommendToStudents === 'yes'}
+                      onClick={() => {
+                        console.log("YES radio clicked directly");
+                        this.setState(prevState => ({
+                          formData: {
+                            ...prevState.formData,
+                            recommendToStudents: 'yes'
+                          }
+                        }));
+                      }}
                       sx={{ 
                         color: '#800000',
                         '&.Mui-checked': { color: '#800000' }
@@ -535,6 +571,16 @@ class OJTAdviserEval extends Component {
                   value="no" 
                   control={
                     <Radio 
+                      checked={this.formData.recommendToStudents === 'no'}
+                      onClick={() => {
+                        console.log("NO radio clicked directly");
+                        this.setState(prevState => ({
+                          formData: {
+                            ...prevState.formData,
+                            recommendToStudents: 'no'
+                          }
+                        }));
+                      }}
                       sx={{ 
                         color: '#800000',
                         '&.Mui-checked': { color: '#800000' }

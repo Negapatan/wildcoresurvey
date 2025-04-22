@@ -163,13 +163,43 @@ enableIndexedDbPersistence(db)
 // Add a function to sign out the current user
 export const signOutUser = async () => {
   try {
-    await signOut(auth);
-    console.log('User signed out successfully');
-    // Try to sign in anonymously again after signing out
-    await authenticateAnonymously();
+    if (auth.currentUser) {
+      await signOut(auth);
+      console.log('User signed out successfully');
+      // Try to sign in anonymously again after signing out
+      try {
+        await authenticateAnonymously();
+      } catch (authError) {
+        console.warn('Could not re-authenticate anonymously after sign out, proceeding without authentication:', authError);
+      }
+    } else {
+      console.log('No user to sign out');
+    }
   } catch (error) {
-    console.error('Error signing out or re-authenticating:', error);
+    console.error('Error signing out:', error);
+    throw error; // Re-throw to let the caller handle it
   }
 };
 
+// Helper function for trying to sign in with improved error handling
+export const trySignIn = async (email, password) => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    console.log('Sign in successful');
+    return {
+      success: true,
+      user: userCredential.user
+    };
+  } catch (error) {
+    console.error('Sign in failed:', error);
+    return {
+      success: false,
+      error: error.message,
+      code: error.code
+    };
+  }
+};
+
+// Export the Firebase app instance
+// Move this to the end to avoid circular dependencies
 export default app; 

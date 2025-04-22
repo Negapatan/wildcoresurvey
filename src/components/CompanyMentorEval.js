@@ -122,7 +122,8 @@ class StudentSurvey extends Component {
         schoolYear: '',
         semester: '',
         section: 'OJT', // Default section until a student is selected
-        evaluationMode: this.props.evaluationMode || 'FINAL' // Use value passed from CompanyAccess.js or default to FINAL
+        evaluationMode: this.props.evaluationMode || 'FINAL', // Use value passed from CompanyAccess.js or default to FINAL
+        accessKey: '' // Store the access key used for this evaluation
       },
       companies: [],
       companyStudents: [],
@@ -162,12 +163,99 @@ class StudentSurvey extends Component {
     this.semesters = [
       { value: '1st', label: '1st Semester' },
       { value: '2nd', label: '2nd Semester' },
-      { value: 'summer', label: 'Summer' }
+      { value: 'Summer', label: 'Summer' }
     ];
   }
 
   componentDidMount() {
     this.fetchCompanies();
+    
+    // If company and student info is provided via props, pre-fill the form
+    this.prefillFormFromProps();
+  }
+
+  prefillFormFromProps() {
+    const { companyInfo, studentInfo, evaluationMode } = this.props;
+    
+    if (companyInfo || studentInfo) {
+      console.log('Pre-filling form with provided data:', { companyInfo, studentInfo, evaluationMode });
+      
+      const formDataUpdate = { ...this.state.formData };
+      
+      // Pre-fill company information if available
+      if (companyInfo) {
+        formDataUpdate.companyName = companyInfo.name || '';
+        
+        // Set selected company ID if available
+        if (companyInfo.id) {
+          this.setState({ selectedCompanyId: companyInfo.id });
+          // Fetch students for this company
+          this.fetchStudentsForCompany(companyInfo.id);
+        }
+      }
+      
+      // Pre-fill student information if available
+      if (studentInfo) {
+        console.log('Pre-filling student data:', studentInfo);
+        
+        // Update form data with ALL student information
+        // Basic student information
+        if (studentInfo.name) formDataUpdate.studentName = studentInfo.name;
+        if (studentInfo.studentId) formDataUpdate.studentId = studentInfo.studentId;
+        if (studentInfo.section) formDataUpdate.section = studentInfo.section;
+        if (studentInfo.college) formDataUpdate.college = studentInfo.college;
+        if (studentInfo.program) formDataUpdate.program = studentInfo.program;
+        
+        // Academic information
+        if (studentInfo.semester) formDataUpdate.semester = studentInfo.semester;
+        if (studentInfo.schoolYear) formDataUpdate.schoolYear = studentInfo.schoolYear;
+        
+        // If evaluationMode is provided, use it
+        if (evaluationMode) {
+          formDataUpdate.evaluationMode = evaluationMode;
+        }
+
+        // Store the access key that was used - Try all possible access key field formats
+        const evalMode = evaluationMode || formDataUpdate.evaluationMode || 'FINAL';
+        console.log('Current evaluation mode for access key:', evalMode);
+        
+        // Define all possible access key field names to check
+        const keyFields = [
+          `${evalMode.toLowerCase()}Key`,  // e.g. "finalKey"
+          `${evalMode}Key`,                // e.g. "FINALKey"
+          `${evalMode.toLowerCase()}sKey`, // e.g. "finalsKey"
+          `${evalMode}sKey`,               // e.g. "FINALSKey"
+          'accessKey'                      // legacy format
+        ];
+        
+        console.log('Looking for access key in these fields:', keyFields);
+        
+        // Try each possible key field
+        let foundAccessKey = false;
+        for (const keyField of keyFields) {
+          if (studentInfo[keyField]) {
+            formDataUpdate.accessKey = studentInfo[keyField];
+            console.log(`Found and stored access key from ${keyField}:`, studentInfo[keyField]);
+            foundAccessKey = true;
+            break;
+          }
+        }
+        
+        if (!foundAccessKey) {
+          console.warn('No access key found in student info:', studentInfo);
+        }
+        
+        console.log('Updated form data with all fields:', formDataUpdate);
+      }
+      
+      // Update the form data state
+      this.setState({ formData: formDataUpdate });
+      
+      // Log confirmation of pre-filling
+      if (studentInfo && studentInfo.studentId) {
+        console.log(`Successfully pre-filled form for student ID: ${studentInfo.studentId}`);
+      }
+    }
   }
 
   fetchCompanies = async () => {
@@ -270,13 +358,6 @@ class StudentSurvey extends Component {
       
       if (studentsArray.length === 0) {
         console.log("No students found for this company");
-        this.setState({
-          snackbar: {
-            open: true,
-            message: 'No students found for this company. You can still enter a student name manually.',
-            severity: 'info'
-          }
-        });
       }
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -284,7 +365,7 @@ class StudentSurvey extends Component {
         isLoadingStudents: false,
         snackbar: {
           open: true,
-          message: `Error loading students: ${error.message}. You can still enter a student name manually.`,
+          message: `Error loading students: ${error.message}`,
           severity: 'error'
         }
       });
@@ -495,85 +576,100 @@ class StudentSurvey extends Component {
 
   validateStudentInfo = async () => {
     try {
-      const { studentName, studentId, evaluationMode } = this.formData;
-      console.log('Validating student info for student survey:', { studentName, studentId, evaluationMode });
+      const { studentName, studentId, evaluationMode, semester, accessKey } = this.formData;
+      console.log('Validating student info for student survey:', { studentName, studentId, evaluationMode, semester, accessKey });
       
-      if (!studentId || !studentName) {
-        console.log('Missing student name or ID');
-        this.showError('Student name and ID are required');
-        return false;
-      }
+      // Check if this is an access-key based student (pre-filled)
+      const isPrefilledStudent = this.props.studentInfo && this.props.studentInfo.studentId === studentId;
       
-      if (!this.formData.college) {
-        console.log('Missing college information');
-        this.showError('Please select a college for this student');
-        return false;
-      }
-      
-      // Check period-specific collection
-      const evalMode = evaluationMode.toLowerCase();
-      const studentSurveysCollectionName = `studentSurveys_${evalMode}`;
-      const studentSurveysRef = collection(db, studentSurveysCollectionName);
-      
-      // Query for documents with the matching studentId
-      const studentSurveysQuery = query(studentSurveysRef, where('studentId', '==', studentId));
-      const studentSurveysSnapshot = await getDocs(studentSurveysQuery);
-      
-      console.log('Student records check results:', {
-        evaluationMode,
-        foundInPeriodCollection: !studentSurveysSnapshot.empty
-      });
-      
-      if (!studentSurveysSnapshot.empty) {
-        console.log(`Student ID found in ${studentSurveysCollectionName} collection. Documents:`);
-        studentSurveysSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
+      if (!isPrefilledStudent) {
+        console.log('Student was not pre-filled from access key, performing standard validation');
         
-        this.showError(`This student has already been evaluated for ${evaluationMode} period. Each student can only have one ${evaluationMode.toLowerCase()} performance evaluation.`);
-        return false;
-      }
-      
-      // Also check the combined collection as a backup
-      try {
-        const combinedCollectionRef = collection(db, 'studentSurveys');
-        const combinedQuery = query(
-          combinedCollectionRef, 
-          where('studentId', '==', studentId),
-          where('evaluationMode', '==', evaluationMode)
-        );
-        const combinedSnapshot = await getDocs(combinedQuery);
-        
-        if (!combinedSnapshot.empty) {
-          console.log(`Student ID found in combined collection with ${evaluationMode} mode. Documents:`);
-          combinedSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
-          
-          this.showError(`This student has already been evaluated for ${evaluationMode} period. Each student can only have one ${evaluationMode.toLowerCase()} performance evaluation.`);
+        if (!studentName) {
+          console.log('Missing student name');
+          this.showError('Student name is required');
           return false;
         }
-      } catch (error) {
-        console.warn('Error checking combined collection:', error);
-        // Continue with validation even if this check fails
-      }
-      
-      // Also check the legacy collection as a final backup
-      try {
-        const legacyCollectionRef = collection(db, 'studentSurveys_legacy');
-        const legacyQuery = query(
-          legacyCollectionRef, 
-          where('studentId', '==', studentId),
-          where('evaluationMode', '==', evaluationMode)
-        );
-        const legacySnapshot = await getDocs(legacyQuery);
         
-        if (!legacySnapshot.empty) {
-          console.log(`Student ID found in legacy collection with ${evaluationMode} mode. Documents:`);
-          legacySnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
-          
-          this.showError(`This student has already been evaluated for ${evaluationMode} period. Each student can only have one ${evaluationMode.toLowerCase()} performance evaluation.`);
+        if (!this.formData.college) {
+          console.log('Missing college information');
+          this.showError('Please select a college for this student');
           return false;
         }
-      } catch (error) {
-        console.warn('Error checking legacy collection:', error);
-        // Continue with validation even if legacy check fails
+
+        if (!semester) {
+          console.log('Missing semester information');
+          this.showError('Semester information is required');
+          return false;
+        }
+      }
+      
+      // First check if this student has already submitted a survey
+      if (studentName) {
+        try {
+          // Check in the period-specific collection
+          const collectionName = `studentSurveys_${evaluationMode.toLowerCase()}`;
+          console.log(`Checking if student ${studentName} has already submitted in ${collectionName}...`);
+          
+          // Create queries based on available identifiers
+          let existingSubmissionQuery;
+          
+          if (studentId) {
+            // Prefer student ID if available
+            existingSubmissionQuery = query(
+              collection(db, collectionName),
+              where('studentId', '==', studentId),
+              where('semester', '==', semester)
+            );
+          } else {
+            // Fall back to student name
+            existingSubmissionQuery = query(
+              collection(db, collectionName),
+              where('studentName', '==', studentName),
+              where('semester', '==', semester)
+            );
+          }
+          
+          const existingSubmissionSnapshot = await getDocs(existingSubmissionQuery);
+          
+          if (!existingSubmissionSnapshot.empty) {
+            console.error(`Student ${studentName} has already submitted a ${evaluationMode.toLowerCase()} student survey for ${semester} semester.`);
+            existingSubmissionSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
+            
+            this.showError(`This student has already submitted a ${evaluationMode.toLowerCase()} performance evaluation for the ${semester} semester. Each student can only submit one survey per semester.`);
+            return false;
+          }
+        } catch (error) {
+          console.warn('Error checking for existing student submissions:', error);
+          // Continue with other validation
+        }
+      }
+      
+      // If there's an access key, check if it's already been used
+      if (accessKey) {
+        try {
+          // Check the period-specific collection
+          const collectionName = `studentSurveys_${evaluationMode.toLowerCase()}`;
+          console.log(`Checking if access key ${accessKey} has already been used in ${collectionName}...`);
+          
+          const keyUsageQuery = query(
+            collection(db, collectionName),
+            where('accessKey', '==', accessKey)
+          );
+          
+          const keyUsageSnapshot = await getDocs(keyUsageQuery);
+          
+          if (!keyUsageSnapshot.empty) {
+            console.error(`Access key ${accessKey} has already been used for a ${evaluationMode.toLowerCase()} student survey.`);
+            keyUsageSnapshot.forEach(doc => console.log('- Document ID:', doc.id, 'Data:', doc.data()));
+            
+            this.showError(`This access key has already been used for a ${evaluationMode.toLowerCase()} performance evaluation. Each access key can only be used once.`);
+            return false;
+          }
+        } catch (error) {
+          console.warn('Error checking for existing access key usage:', error);
+          // Continue with other validation
+        }
       }
       
       return true;
@@ -603,22 +699,30 @@ class StudentSurvey extends Component {
         workAttitudeRatings: this.workAttitudeRatings,
         workPerformanceRatings: this.workPerformanceRatings,
         userRole: this.state.userRole,
-        ...this.formData
+        ...this.formData,
+        // Ensure access key is explicitly included
+        accessKey: this.formData.accessKey || ''
       };
       
       console.log('Form data before submission:', this.formData);
       console.log('Section value:', this.formData.section);
       console.log('Evaluation mode:', this.formData.evaluationMode);
+      console.log('Student ID:', this.formData.studentId); // Log the student ID
+      console.log('Access Key:', this.formData.accessKey); // Log the access key
       console.log('Preparing to submit to studentSurveys collection:', submissionData);
       
-      const surveyId = await submitStudentSurvey(submissionData);
+      // Use student ID as the document ID for better security rules compliance
+      const studentId = this.formData.studentId;
+      const documentId = studentId; // Use studentId as document ID
+      
+      const surveyId = await submitStudentSurvey(submissionData, documentId);
       
       console.log('Student survey successfully submitted with ID:', surveyId);
       this.isSubmitted = true;
       
     } catch (error) {
       console.error('Error submitting student survey:', error);
-      this.showError(`Error submitting evaluation: ${error.message}`);
+      this.showError(`Error submitting evaluation: ${error.message.includes('Missing required fields: studentId') ? 'Please complete all required fields' : error.message}`);
     } finally {
       this.setState({ isSubmitting: false });
     }
@@ -719,6 +823,7 @@ class StudentSurvey extends Component {
 
   renderCompanySelect() {
     const { companies, isLoadingCompanies, formData } = this.state;
+    const hasCompanyInfo = !!this.props.companyInfo;
     
     return (
       <Autocomplete
@@ -731,6 +836,7 @@ class StudentSurvey extends Component {
         onChange={this.handleCompanyChange}
         freeSolo
         loading={isLoadingCompanies}
+        disabled={hasCompanyInfo}
         renderInput={(params) => (
           <TextField
             {...params}
@@ -759,7 +865,8 @@ class StudentSurvey extends Component {
                 color: '#800000',
               }
             }}
-            helperText={companies.length === 0 && !isLoadingCompanies ? "No companies found. You can enter a new company name" : ""}
+            helperText={hasCompanyInfo ? "Company information from access key" : 
+              (companies.length === 0 && !isLoadingCompanies ? "No companies found. You can enter a new company name" : "")}
           />
         )}
       />
@@ -768,6 +875,7 @@ class StudentSurvey extends Component {
 
   renderStudentSelect() {
     const { companyStudents, isLoadingStudents, formData, selectedCompanyId } = this.state;
+    const hasStudentInfo = !!this.props.studentInfo;
     
     return (
       <Autocomplete
@@ -784,7 +892,7 @@ class StudentSurvey extends Component {
         onChange={this.handleStudentChange}
         freeSolo
         loading={isLoadingStudents}
-        disabled={!selectedCompanyId && !formData.companyName}
+        disabled={hasStudentInfo || (!selectedCompanyId && !formData.companyName)}
         renderInput={(params) => (
           <TextField
             {...params}
@@ -813,13 +921,10 @@ class StudentSurvey extends Component {
                 color: '#800000',
               }
             }}
-            helperText={selectedCompanyId && companyStudents.length === 0 && !isLoadingStudents 
-              ? "No students found for this company. You can enter a student name manually"
-              : !selectedCompanyId && formData.companyName
-                ? "New company entered. You can enter a student name manually"
-                : !formData.companyName
-                  ? "Select a company first"
-                  : "Student's college will be used if available"}
+            helperText={hasStudentInfo ? "Student information from access key" :
+              (!selectedCompanyId && !formData.companyName
+                ? "Select a company first"
+                : formData.companyName && "Student's college will be used if available")}
           />
         )}
         renderOption={(props, opt) => (
@@ -843,6 +948,9 @@ class StudentSurvey extends Component {
   }
 
   renderTextField(name, label, placeholder = '') {
+    const hasStudentInfo = !!this.props.studentInfo;
+    const isPrefilledField = hasStudentInfo && ['schoolYear', 'section'].includes(name);
+    
     return (
       <TextField
         required
@@ -853,6 +961,7 @@ class StudentSurvey extends Component {
         value={this.formData[name]}
         onChange={this.handleFormChange}
         placeholder={placeholder}
+        disabled={isPrefilledField}
         sx={{
           '& .MuiOutlinedInput-root': {
             '&:hover fieldset': {
@@ -866,11 +975,14 @@ class StudentSurvey extends Component {
             color: '#800000',
           }
         }}
+        helperText={isPrefilledField ? "Information from access key" : ""}
       />
     );
   }
 
   renderCollegeSelect() {
+    const hasStudentInfo = !!this.props.studentInfo;
+    
     return (
       <FormControl
         required
@@ -885,6 +997,7 @@ class StudentSurvey extends Component {
           value={this.formData.college || ''}
           onChange={this.handleFormChange}
           label="College / Department"
+          disabled={hasStudentInfo}
           MenuProps={{
             PaperProps: {
               style: {
@@ -909,6 +1022,11 @@ class StudentSurvey extends Component {
             </MenuItem>
           ))}
         </Select>
+        {hasStudentInfo && (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+            College information from access key
+          </Typography>
+        )}
       </FormControl>
     );
   }
@@ -916,6 +1034,7 @@ class StudentSurvey extends Component {
   renderProgramSelect() {
     // Get programs based on selected college or use all programs if no college is selected
     const programs = this.formData.college ? this.getProgramsByCollege(this.formData.college) : PROGRAMS;
+    const hasStudentInfo = !!this.props.studentInfo;
     
     return (
       <FormControl
@@ -931,7 +1050,7 @@ class StudentSurvey extends Component {
           value={this.formData.program || ''}
           onChange={this.handleFormChange}
           label="Program"
-          disabled={!this.formData.college} // Disable until college is selected
+          disabled={hasStudentInfo || !this.formData.college} // Disable if pre-filled or no college selected
           MenuProps={{
             PaperProps: {
               style: {
@@ -956,7 +1075,11 @@ class StudentSurvey extends Component {
             </MenuItem>
           ))}
         </Select>
-        {!this.formData.college && (
+        {hasStudentInfo ? (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+            Program information from access key
+          </Typography>
+        ) : !this.formData.college && (
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
             Please select a College/Department first
           </Typography>
@@ -966,6 +1089,8 @@ class StudentSurvey extends Component {
   }
 
   renderSemesterSelect() {
+    const hasStudentInfo = !!this.props.studentInfo;
+    
     return (
       <TextField
         required
@@ -976,6 +1101,7 @@ class StudentSurvey extends Component {
         name="semester"
         value={this.formData.semester}
         onChange={this.handleFormChange}
+        disabled={hasStudentInfo}
         sx={{
           '& .MuiOutlinedInput-root': {
             '&:hover fieldset': {
@@ -989,6 +1115,7 @@ class StudentSurvey extends Component {
             color: '#800000',
           }
         }}
+        helperText={hasStudentInfo ? "Semester information from access key" : ""}
       >
         {this.semesters.map((option) => (
           <MenuItem key={option.value} value={option.value}>
@@ -1068,6 +1195,11 @@ class StudentSurvey extends Component {
         evaluationMode={formData.evaluationMode}
         onMakeAnother={this.handleMakeAnotherEvaluation}
         onReturn={() => window.location.href = '/'} 
+        onBackToAccess={this.props.onBack ? this.props.onBack : () => {
+          // Navigate back to the appropriate access page based on user role
+          const userRole = this.state.userRole || 'company';
+          window.location.href = `/?role=${userRole}`;
+        }}
       />;
     }
 
