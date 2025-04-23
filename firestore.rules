@@ -637,7 +637,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Period-specific OJT Advisers Collections
+    // Period-specific OJT Advisers Collections with updated structure
     match /OJTadvisers_midterm/{surveyId} {
       allow read: if true;  // Allow anyone to read
       allow create: if true;  // Allow anyone to create without validation

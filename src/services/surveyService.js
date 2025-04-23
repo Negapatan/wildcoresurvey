@@ -205,17 +205,17 @@ export const submitCompanySurvey = async (surveyData) => {
     try {
       // First attempt to write to period-specific collection
       const docRef = await addDoc(collection(db, collectionName), dataWithTimestamp);
-      console.log(`Document written with ID: ${docRef.id} to ${collectionName}`);
-      
-      // Also save to the main collection for backwards compatibility
+    console.log(`Document written with ID: ${docRef.id} to ${collectionName}`);
+    
+    // Also save to the main collection for backwards compatibility
       try {
         await addDoc(collection(db, 'OJTadvisers'), dataWithTimestamp);
         console.log(`Successfully saved to main OJTadvisers collection as well`);
       } catch (mainCollectionError) {
         console.warn('Failed to save to main collection, but period-specific save succeeded:', mainCollectionError);
       }
-      
-      return { success: true, docId: docRef.id };
+    
+    return { success: true, docId: docRef.id };
     } catch (primaryError) {
       console.error(`Failed to write to ${collectionName}:`, primaryError);
       
@@ -281,8 +281,8 @@ export const submitConcernsSurvey = async (surveyData) => {
         // First attempt - use serverTimestamp
         try {
           await setDoc(studentDocRef, updateData, { merge: true });
-          console.log(`Successfully updated student record with ID: ${surveyData.studentDocId}`);
-          results.studentDataUpdated = true;
+        console.log(`Successfully updated student record with ID: ${surveyData.studentDocId}`);
+        results.studentDataUpdated = true;
         } catch (primaryUpdateError) {
           console.warn('First update attempt failed, trying with string timestamp:', primaryUpdateError.message);
           

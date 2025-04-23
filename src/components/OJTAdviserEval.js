@@ -12,9 +12,11 @@ import {
   RadioGroup,
   FormControlLabel,
   FormControl,
-  Rating,
   Divider,
-  Autocomplete
+  Autocomplete,
+  Checkbox,
+  FormGroup,
+  FormLabel
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ThankYouPage from './ThankYouPage';
@@ -72,6 +74,21 @@ const StyledComponents = {
       backgroundColor: isActive ? '#800000' : 'white',
     },
   })),
+
+  SectionTitle: styled(Typography)(({ theme }) => ({
+    fontWeight: 600,
+    color: '#800000',
+    marginBottom: theme.spacing(2),
+    fontSize: '1.25rem',
+  })),
+
+  SubsectionTitle: styled(Typography)(({ theme }) => ({
+    fontWeight: 600,
+    color: '#555',
+    marginBottom: theme.spacing(1),
+    marginTop: theme.spacing(2),
+    fontSize: '1.1rem',
+  })),
 };
 
 class OJTAdviserEval extends Component {
@@ -79,16 +96,66 @@ class OJTAdviserEval extends Component {
     super(props);
     this.state = {
       formData: {
-        meetingDate: '',
+        // Part 1: Company Profile
         companyName: '',
-        studentNames: '',
-        overallPerformance: '',
-        tasksAssigned: '',
-        trainingProvided: '',
+        companyAddress: '',
+        departmentAssigned: '',
+        supervisorInCharge: '',
+        supervisorContact: '',
+        supervisorEmail: '',
+        
+        // Part 2: Evaluation Checklist
+        // A. Priority Level
+        priorityLevel: '',
+        
+        // B. Workplace Safety
+        safetyProtocols: false,
+        safetyOrientation: false,
+        emergencyPlans: false,
+        noSafetyConcerns: false,
+        safetyComments: '',
+        
+        // C. Learning Opportunities
+        relevantTasks: false,
+        supervisionEvident: false,
+        industryExposure: false,
+        knowledgeApplication: false,
+        
+        // D. Work Environment
+        professionalCulture: false,
+        openCommunication: false,
+        encouragesInitiative: false,
+        noHarassment: false,
+        
+        // E. Compliance with MOA
+        providedHours: false,
+        submittedForms: false,
+        attendedOrientation: false,
+        openToCollaboration: false,
+        
+        // Interview Questions
+        workingDuration: '',
+        typicalTasks: '',
+        
+        // Performance
         technicalSkills: '',
-        recommendations: '',
-        industryMentor: '',
-        recommendToStudents: '',
+        communication: '',
+        professionalism: '',
+        adaptability: '',
+        
+        // Additional Questions
+        wellPrepared: '',
+        curriculumImprovements: '',
+        futureEngagements: '',
+        hiringProspects: '',
+        programImprovements: '',
+        
+        // Signatures
+        advisorName: '',
+        supervisorName: '',
+        meetingDate: '',
+        
+        // System Fields
         program: '',
         evaluationPeriod: props.evaluationPeriod || 'MIDTERMS'
       },
@@ -167,6 +234,16 @@ class OJTAdviserEval extends Component {
     }));
   }
 
+  handleCheckboxChange = (event) => {
+    const { name, checked } = event.target;
+    this.setState(prevState => ({
+      formData: {
+        ...prevState.formData,
+        [name]: checked
+      }
+    }));
+  }
+
   handleSnackbarClose = () => {
     this.setState(prevState => ({
       snackbar: {
@@ -186,62 +263,30 @@ class OJTAdviserEval extends Component {
     }
   };
 
-  handleRecommendationChange = (event) => {
-    const value = event.target.value;
-    console.log(`Recommendation changed to: ${value}`);
-    
-    // Directly update the state with the new recommendation value
+  handleRadioChange = (event) => {
+    const { name, value } = event.target;
     this.setState(prevState => ({
       formData: {
         ...prevState.formData,
-        recommendToStudents: value
+        [name]: value
       }
     }), () => {
-      // Log the updated state after it's been set
-      console.log(`Updated formData.recommendToStudents = ${this.state.formData.recommendToStudents}`);
+      console.log(`Updated ${name} = ${this.state.formData[name]}`);
     });
   }
 
   validateForm() {
     const { 
-      meetingDate,
       companyName,
-      studentNames,
-      program,
-      overallPerformance,
-      tasksAssigned,
-      trainingProvided,
-      technicalSkills,
-      recommendations,
-      industryMentor,
-      recommendToStudents
+      companyAddress,
+      supervisorInCharge,
+      priorityLevel,
+      program
     } = this.formData;
 
-    console.log("Validation - recommendToStudents:", recommendToStudents);
-
-    if (!meetingDate || !companyName || !studentNames || !program || !overallPerformance || !tasksAssigned || !trainingProvided || !technicalSkills || !recommendations || !industryMentor || !recommendToStudents) {
-      this.showError('Please fill in all required fields');
-      return false;
-    }
-
-    // Check text fields
-    const textFields = [
-      tasksAssigned,
-      trainingProvided,
-      technicalSkills,
-      recommendations,
-      industryMentor
-    ];
-
-    if (textFields.some(field => !field || field.trim() === '')) {
-      this.showError('Please fill in all required fields');
-      return false;
-    }
-
-    // Check recommendation selection
-    if (!recommendToStudents || !['yes', 'no'].includes(recommendToStudents)) {
-      this.showError('Please select whether you would recommend this to other Students');
-      console.log("Invalid recommendation value:", recommendToStudents);
+    // Required fields validation
+    if (!companyName || !companyAddress || !supervisorInCharge || !priorityLevel || !program) {
+      this.showError('Please fill in all required fields in the Company Profile and Priority Level sections');
       return false;
     }
 
@@ -273,7 +318,6 @@ class OJTAdviserEval extends Component {
       
       // Log the form data before submission for debugging
       console.log('Submitting form data:', JSON.stringify(submissionData, null, 2));
-      console.log('Recommendation value:', submissionData.recommendToStudents);
       
       await submitCompanySurvey(submissionData);
 
@@ -287,10 +331,10 @@ class OJTAdviserEval extends Component {
     }
   }
 
-  renderTextField(name, label, multiline = false, type = 'text', helperText = '') {
+  renderTextField(name, label, multiline = false, type = 'text', helperText = '', required = false) {
     return (
       <TextField
-        required
+        required={required}
         fullWidth
         multiline={multiline}
         rows={multiline ? 4 : 1}
@@ -340,51 +384,45 @@ class OJTAdviserEval extends Component {
     );
   }
 
-  renderPerformanceRating() {
+  renderCheckboxGroup(title, checkboxes) {
     return (
-      <Box sx={{ width: '100%', mb: 3 }}>
-        <Typography component="legend" sx={{ mb: 1, color: '#555', fontWeight: 500 }}>
-          Overall performance of student/s
-        </Typography>
-        <Rating
-          name="overallPerformance"
-          value={parseInt(this.formData.overallPerformance) || 0}
-          onChange={(event, newValue) => {
-            this.handleFormChange({
-              target: {
-                name: 'overallPerformance',
-                value: newValue
+      <FormControl component="fieldset" sx={{ mb: 3, width: '100%' }}>
+        <FormLabel component="legend" sx={{ color: '#555', fontWeight: 500, mb: 1 }}>
+          {title}
+        </FormLabel>
+        <FormGroup>
+          {checkboxes.map((checkbox, index) => (
+            <FormControlLabel
+              key={index}
+              control={
+                <Checkbox
+                  checked={!!this.formData[checkbox.name]}
+                  onChange={this.handleCheckboxChange}
+                  name={checkbox.name}
+                  sx={{
+                    color: '#800000',
+                    '&.Mui-checked': {
+                      color: '#800000',
+                    },
+                  }}
+                />
               }
-            });
-          }}
-          max={10}
-          sx={{
-            '& .MuiRating-icon': {
-              color: '#800000',
-            },
-            '& .MuiRating-iconFilled': {
-              color: '#800000',
-            },
-            '& .MuiRating-iconHover': {
-              color: '#600000',
-            }
-          }}
-        />
-        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#666' }}>
-          Rating: 1 = lowest to 10 = highest
-        </Typography>
-      </Box>
+              label={checkbox.label}
+            />
+          ))}
+        </FormGroup>
+      </FormControl>
     );
   }
 
   render() {
-    const { SurveySection, FormDivider, SubmitButton, BackButton, PeriodButton } = StyledComponents;
+    const { SurveySection, FormDivider, SubmitButton, BackButton, PeriodButton, SectionTitle, SubsectionTitle } = StyledComponents;
     const { isSubmitting, isSubmitted, snackbar } = this.state;
     const { evaluationPeriod } = this.props;
 
     if (isSubmitted) {
       return <ThankYouPage 
-        surveyType="company" 
+        surveyType="adviser" 
         onReturn={() => window.location.href = '/'} 
       />;
     }
@@ -450,7 +488,7 @@ class OJTAdviserEval extends Component {
               fontWeight: 600
             }}
           >
-            Visital Assessment
+            Host Training Establishment Evaluation
           </Typography>
           
           <Typography 
@@ -462,7 +500,7 @@ class OJTAdviserEval extends Component {
               fontWeight: 500
             }}
           >
-            OJT Partners Evaluation Form
+            CIT-University OJT Partners Assessment Form
           </Typography>
 
           <Typography 
@@ -475,123 +513,169 @@ class OJTAdviserEval extends Component {
               px: 2
             }}
           >
-            Dear OJT Adviser, The following questionnaire and guide are intended for OJT Advisers 
-            to use during virtual meetings with company representatives. Please ensure that you 
-            document all important details discussed during the meeting for future reference.
+            This form is intended for OJT Advisers to evaluate partner companies during site visits 
+            or virtual meetings. Please ensure that you document all important details for future reference.
           </Typography>
 
           <FormDivider />
 
-          <Stack spacing={3} sx={{ px: 2 }}>
-            {this.renderTextField('meetingDate', 'Meeting Date', false, 'date', 'Please input date (M/d/yyyy)')}
-            {this.renderTextField('companyName', 'Company Name')}
-            {this.renderTextField('studentNames', 'Name of Student/s')}
-            {this.renderPerformanceRating()}
-            
-            <FormDivider />
-            
-            {this.renderTextField('tasksAssigned', 'Tasks assigned to students', true)}
-            {this.renderTextField('trainingProvided', 'Training / learning enhancement given by the company to students', true)}
-            {this.renderTextField('technicalSkills', 'Technical skills of students significant to your company needs', true)}
-            {this.renderTextField('recommendations', 'Recommendation for curriculum or OJT program enhancement', true)}
-            {this.renderTextField('industryMentor', 'Industry Mentor')}
-
-            <FormDivider />
-
-            <Autocomplete
-              options={this.PROGRAMS}
-              value={this.formData.program}
-              onChange={(event, newValue) => {
-                this.handleFormChange({
-                  target: {
-                    name: 'program',
-                    value: newValue
-                  }
-                });
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Program"
-                  required
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      '&:hover fieldset': {
-                        borderColor: '#800000',
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#800000',
-                      }
-                    },
-                    '& .MuiInputLabel-root': {
-                      '&.Mui-focused': {
-                        color: '#800000'
-                      }
-                    }
-                  }}
-                />
-              )}
-            />
-
-            <FormDivider />
-
-            <FormControl component="fieldset">
-              <Typography variant="body1" sx={{ mb: 2, fontWeight: 500, color: '#555' }}>
-                Would you recommend this to other Students?
-              </Typography>
-              <RadioGroup
-                name="recommendToStudents"
-                value={this.formData.recommendToStudents || ''}
-                onChange={this.handleRecommendationChange}
-                sx={{ flexDirection: 'row', gap: 4 }}
-              >
-                <FormControlLabel 
-                  value="yes" 
-                  control={
-                    <Radio 
-                      checked={this.formData.recommendToStudents === 'yes'}
-                      onClick={() => {
-                        console.log("YES radio clicked directly");
-                        this.setState(prevState => ({
-                          formData: {
-                            ...prevState.formData,
-                            recommendToStudents: 'yes'
-                          }
-                        }));
-                      }}
-                      sx={{ 
-                        color: '#800000',
-                        '&.Mui-checked': { color: '#800000' }
-                      }} 
-                    />
-                  } 
-                  label="Yes" 
-                />
-                <FormControlLabel 
-                  value="no" 
-                  control={
-                    <Radio 
-                      checked={this.formData.recommendToStudents === 'no'}
-                      onClick={() => {
-                        console.log("NO radio clicked directly");
-                        this.setState(prevState => ({
-                          formData: {
-                            ...prevState.formData,
-                            recommendToStudents: 'no'
-                          }
-                        }));
-                      }}
-                      sx={{ 
-                        color: '#800000',
-                        '&.Mui-checked': { color: '#800000' }
-                      }} 
-                    />
-                  } 
-                  label="No" 
-                />
-              </RadioGroup>
-            </FormControl>
+          {/* Part 1: Company Profile */}
+          <SectionTitle>Part 1: Company Profile</SectionTitle>
+          <Stack spacing={2} sx={{ px: 2, mb: 4 }}>
+            {this.renderTextField('companyName', 'Company Name', false, 'text', '', true)}
+            {this.renderTextField('companyAddress', 'Address', false, 'text', '', true)}
+            {this.renderTextField('departmentAssigned', 'Department/Area Assigned', false, 'text', '')}
+            {this.renderTextField('supervisorInCharge', 'Supervisor-in-Charge', false, 'text', '', true)}
+            {this.renderTextField('supervisorContact', 'Contact Info', false, 'text', '')}
+            {this.renderTextField('supervisorEmail', 'Email Address', false, 'email', '')}
           </Stack>
+
+          <FormDivider />
+
+          {/* Part 2: Evaluation Checklist */}
+          <SectionTitle>Part 2: Evaluation Checklist</SectionTitle>
+          
+          {/* Section A: Priority Level */}
+          <SubsectionTitle>A. Priority Level for Partnership</SubsectionTitle>
+          <FormControl component="fieldset" sx={{ mb: 4, width: '100%' }}>
+            <RadioGroup
+              name="priorityLevel"
+              value={this.formData.priorityLevel || ''}
+              onChange={this.handleRadioChange}
+            >
+              <FormControlLabel 
+                value="High Priority" 
+                control={<Radio sx={{ color: '#800000', '&.Mui-checked': { color: '#800000' } }} />} 
+                label="High Priority" 
+              />
+              <FormControlLabel 
+                value="Medium Priority" 
+                control={<Radio sx={{ color: '#800000', '&.Mui-checked': { color: '#800000' } }} />} 
+                label="Medium Priority" 
+              />
+              <FormControlLabel 
+                value="Low Priority" 
+                control={<Radio sx={{ color: '#800000', '&.Mui-checked': { color: '#800000' } }} />} 
+                label="Low Priority" 
+              />
+              <FormControlLabel 
+                value="Not Recommended" 
+                control={<Radio sx={{ color: '#800000', '&.Mui-checked': { color: '#800000' } }} />} 
+                label="Not Recommended" 
+              />
+            </RadioGroup>
+          </FormControl>
+
+          {/* Section B: Workplace Safety */}
+          <SubsectionTitle>B. Workplace Safety</SubsectionTitle>
+          {this.renderCheckboxGroup('', [
+            { name: 'safetyProtocols', label: 'Complies with safety protocols' },
+            { name: 'safetyOrientation', label: 'Orientation on safety provided' },
+            { name: 'emergencyPlans', label: 'Emergency plans and equipment in place' },
+            { name: 'noSafetyConcerns', label: 'No safety concerns raised by interns' }
+          ])}
+          {this.renderTextField('safetyComments', 'Comments', true)}
+
+          {/* Section C: Learning Opportunities */}
+          <SubsectionTitle>C. Learning Opportunities</SubsectionTitle>
+          {this.renderCheckboxGroup('', [
+            { name: 'relevantTasks', label: 'Tasks assigned are relevant to the student\'s field' },
+            { name: 'supervisionEvident', label: 'Supervision and mentoring are evident' },
+            { name: 'industryExposure', label: 'Exposure to real industry practices' },
+            { name: 'knowledgeApplication', label: 'Opportunity to apply academic knowledge' }
+          ])}
+
+          {/* Section D: Work Environment */}
+          <SubsectionTitle>D. Work Environment</SubsectionTitle>
+          {this.renderCheckboxGroup('', [
+            { name: 'professionalCulture', label: 'Professional and respectful culture' },
+            { name: 'openCommunication', label: 'Open communication with interns' },
+            { name: 'encouragesInitiative', label: 'Encourages initiative and feedback' },
+            { name: 'noHarassment', label: 'No reports of harassment or discrimination' }
+          ])}
+
+          {/* Section E: Compliance with MOA/Expectations */}
+          <SubsectionTitle>E. Compliance with MOA/Expectations</SubsectionTitle>
+          {this.renderCheckboxGroup('', [
+            { name: 'providedHours', label: 'Provided required number of OJT hours' },
+            { name: 'submittedForms', label: 'Submitted evaluation forms' },
+            { name: 'attendedOrientation', label: 'Attended OJT orientation (if applicable)' },
+            { name: 'openToCollaboration', label: 'Open to further collaboration (e.g. research, capstone, employment)' }
+          ])}
+
+          <FormDivider />
+
+          {/* Interview Questions */}
+          <SectionTitle>Interview Questions for Supervisors</SectionTitle>
+          <Stack spacing={3} sx={{ px: 2 }}>
+            {this.renderTextField('workingDuration', '1. How long have you been working with OJT students from CIT University?', true)}
+            {this.renderTextField('typicalTasks', '2. What are the typical tasks assigned to our interns?', true)}
+            
+            <SubsectionTitle>3. How would you describe their performance in terms of:</SubsectionTitle>
+            {this.renderTextField('technicalSkills', 'Technical skills', true)}
+            {this.renderTextField('communication', 'Communication', true)}
+            {this.renderTextField('professionalism', 'Professionalism', true)}
+            {this.renderTextField('adaptability', 'Adaptability', true)}
+            
+            {this.renderTextField('wellPrepared', '4. Do you think the students are well-prepared for the tasks given?', true)}
+            {this.renderTextField('curriculumImprovements', '5. Are there areas where you think we can improve our curriculum or student preparation?', true)}
+            {this.renderTextField('futureEngagements', '6. Are you open to future engagements such as research collaboration, career talks, or capstone mentoring?', true)}
+            {this.renderTextField('hiringProspects', '7. Would you consider hiring our students in the future?', true)}
+            {this.renderTextField('programImprovements', '8. What improvements would you suggest for our OJT program?', true)}
+          </Stack>
+
+          <FormDivider />
+
+          {/* Signatures */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 4 }}>
+            <Box sx={{ flex: 1, minWidth: '250px' }}>
+              <SubsectionTitle>CIT-University</SubsectionTitle>
+              {this.renderTextField('advisorName', 'Name', false, 'text')}
+              {this.renderTextField('meetingDate', 'Date', false, 'date')}
+            </Box>
+            <Box sx={{ flex: 1, minWidth: '250px' }}>
+              <SubsectionTitle>Host Training Establishment</SubsectionTitle>
+              {this.renderTextField('supervisorName', 'Name', false, 'text')}
+            </Box>
+          </Box>
+
+          <FormDivider />
+
+          <Autocomplete
+            options={this.PROGRAMS}
+            value={this.formData.program}
+            onChange={(event, newValue) => {
+              this.handleFormChange({
+                target: {
+                  name: 'program',
+                  value: newValue
+                }
+              });
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Program"
+                required
+                sx={{
+                  mb: 3,
+                  '& .MuiOutlinedInput-root': {
+                    '&:hover fieldset': {
+                      borderColor: '#800000',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#800000',
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    '&.Mui-focused': {
+                      color: '#800000'
+                    }
+                  }
+                }}
+              />
+            )}
+          />
         </SurveySection>
 
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -600,7 +684,7 @@ class OJTAdviserEval extends Component {
             onClick={this.handleSubmit}
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Adviser Evaluation'}
+            {isSubmitting ? 'Submitting...' : 'Submit Evaluation'}
           </SubmitButton>
         </Box>
 
