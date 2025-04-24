@@ -14,7 +14,13 @@ import {
   InputLabel,
   FormControl,
   CircularProgress,
-  Autocomplete
+  Autocomplete,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+  Divider
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { submitStudentSurvey } from '../services/surveyService';
@@ -132,6 +138,7 @@ class StudentSurvey extends Component {
       isLoadingStudents: false,
       isSubmitting: false,
       isSubmitted: false,
+      previewOpen: false, // New state for preview dialog
       snackbar: {
         open: false,
         message: '',
@@ -685,6 +692,15 @@ class StudentSurvey extends Component {
       return;
     }
     
+    // Open the preview dialog instead of immediately submitting
+    this.setState({ previewOpen: true });
+  }
+  
+  // New method to handle the actual submission after preview confirmation
+  handleConfirmSubmit = async () => {
+    // Close the preview dialog
+    this.setState({ previewOpen: false });
+    
     // Add validation for student info
     const isValidStudentInfo = await this.validateStudentInfo();
     if (!isValidStudentInfo) {
@@ -726,6 +742,11 @@ class StudentSurvey extends Component {
     } finally {
       this.setState({ isSubmitting: false });
     }
+  }
+  
+  // New method to close the preview dialog
+  handleClosePreview = () => {
+    this.setState({ previewOpen: false });
   }
 
   // Render Methods
@@ -1185,6 +1206,115 @@ class StudentSurvey extends Component {
     return null;
   }
 
+  renderPreviewDialog() {
+    const { previewOpen, workAttitudeRatings, workPerformanceRatings, formData, isSubmitting } = this.state;
+    
+    // Calculate average ratings
+    const calculateAverage = (ratings) => {
+      const values = Object.values(ratings).filter(v => v !== null && v !== undefined);
+      return values.length > 0 
+        ? (values.reduce((sum, val) => sum + val, 0) / values.length).toFixed(2) 
+        : 'N/A';
+    };
+    
+    const attitudeAvg = calculateAverage(workAttitudeRatings);
+    const performanceAvg = calculateAverage(workPerformanceRatings);
+    const overallAvg = ((parseFloat(attitudeAvg) + parseFloat(performanceAvg)) / 2).toFixed(2);
+    
+    return (
+      <Dialog 
+        open={previewOpen} 
+        onClose={this.handleClosePreview}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ bgcolor: '#800000', color: '#FFD700', textAlign: 'center' }}>
+          Preview Student Evaluation
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2 }}>
+            Please review the evaluation details before final submission:
+          </Typography>
+          
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>Student Information</Typography>
+              <Box sx={{ p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography><strong>Name:</strong> {formData.studentName}</Typography>
+                <Typography><strong>ID:</strong> {formData.studentId}</Typography>
+                <Typography><strong>College:</strong> {formData.college}</Typography>
+                <Typography><strong>Program:</strong> {formData.program}</Typography>
+                <Typography><strong>School Year:</strong> {formData.schoolYear}</Typography>
+                <Typography><strong>Semester:</strong> {formData.semester}</Typography>
+                <Typography><strong>Section:</strong> {formData.section}</Typography>
+              </Box>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>Company Information</Typography>
+              <Box sx={{ p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography><strong>Company:</strong> {formData.companyName}</Typography>
+                <Typography><strong>Evaluation Type:</strong> {formData.evaluationMode}</Typography>
+              </Box>
+              
+              <Box sx={{ mt: 3, p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography variant="subtitle2" gutterBottom>Average Ratings</Typography>
+                <Typography><strong>Work Attitude:</strong> {attitudeAvg}/5</Typography>
+                <Typography><strong>Work Performance:</strong> {performanceAvg}/5</Typography>
+                <Typography><strong>Overall Rating:</strong> {overallAvg}/5</Typography>
+              </Box>
+            </Grid>
+          </Grid>
+          
+          <Divider sx={{ my: 2 }} />
+          
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>Work Attitude Ratings</Typography>
+              {this.workAttitudeItems.map((item, index) => (
+                <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2">{item}:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    {workAttitudeRatings[item] || 'N/A'}/5
+                  </Typography>
+                </Box>
+              ))}
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>Work Performance Ratings</Typography>
+              {this.workPerformanceItems.map((item, index) => (
+                <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2">{item}:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    {workPerformanceRatings[item] || 'N/A'}/5
+                  </Typography>
+                </Box>
+              ))}
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+          <Button onClick={this.handleClosePreview} variant="outlined" color="inherit">
+            Back to Edit
+          </Button>
+          <Button 
+            onClick={this.handleConfirmSubmit} 
+            variant="contained" 
+            disabled={isSubmitting}
+            sx={{ 
+              bgcolor: '#800000', 
+              color: '#FFD700',
+              '&:hover': { bgcolor: '#600000' } 
+            }}
+          >
+            {isSubmitting ? 'Submitting...' : 'Confirm & Submit'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
+
   render() {
     const { SurveySection, SubmitButton } = StyledComponents;
     const { isSubmitting, isSubmitted, snackbar, formData } = this.state;
@@ -1242,9 +1372,12 @@ class StudentSurvey extends Component {
             onClick={this.handleSubmit}
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Student Evaluation'}
+            {isSubmitting ? 'Submitting...' : 'Preview & Submit'}
           </SubmitButton>
         </Box>
+
+        {/* Render the preview dialog */}
+        {this.renderPreviewDialog()}
 
         <Snackbar
           open={snackbar.open}

@@ -9,7 +9,11 @@ import {
   Grid,
   Snackbar,
   Alert,
-  Divider
+  Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ThankYouPage from './ThankYouPage';
@@ -110,6 +114,7 @@ class ConcernsSolutions extends Component {
       studentInfo: studentInfo,
       isSubmitting: false,
       isSubmitted: false,
+      previewOpen: false,
       snackbar: {
         open: false,
         message: '',
@@ -179,14 +184,23 @@ class ConcernsSolutions extends Component {
 
   handleSubmit = async (e) => {
     e.preventDefault();
-    this.setState({ isSubmitting: true });
+
+    if (!this.validateForm()) {
+      return;
+    }
+
+    // Open the preview dialog instead of immediately submitting
+    this.setState({ previewOpen: true });
+  }
+
+  handleConfirmSubmit = async () => {
+    // Close the preview dialog
+    this.setState({ 
+      previewOpen: false,
+      isSubmitting: true 
+    });
 
     try {
-      if (!this.validateForm()) {
-        this.setState({ isSubmitting: false });
-        return;
-      }
-
       // Get the student information to include in the submission
       const { studentInfo } = this.state;
       const formData = {
@@ -256,6 +270,95 @@ class ConcernsSolutions extends Component {
     } finally {
       this.setState({ isSubmitting: false });
     }
+  }
+
+  handleClosePreview = () => {
+    this.setState({ previewOpen: false });
+  }
+
+  renderPreviewDialog() {
+    const { SectionTitle } = StyledComponents;
+    const { previewOpen, formData, studentInfo } = this.state;
+
+    return (
+      <Dialog 
+        open={previewOpen} 
+        onClose={this.handleClosePreview}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ bgcolor: '#800000', color: '#FFD700', textAlign: 'center' }}>
+          Preview Feedback
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2 }}>
+            Please review your feedback details before final submission:
+          </Typography>
+
+          {/* Student Information */}
+          <SectionTitle>Student Information</SectionTitle>
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography><strong>Student Name:</strong> {studentInfo.studentName || studentInfo.name || 'N/A'}</Typography>
+                <Typography><strong>Program:</strong> {studentInfo.program || 'N/A'}</Typography>
+                <Typography><strong>Section:</strong> {studentInfo.section || 'N/A'}</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography><strong>Company:</strong> {studentInfo.companyName || studentInfo.partnerCompany || 'N/A'}</Typography>
+                <Typography><strong>Semester:</strong> {studentInfo.semester || 'N/A'}</Typography>
+                <Typography><strong>School Year:</strong> {studentInfo.schoolYear || 'N/A'}</Typography>
+              </Box>
+            </Grid>
+          </Grid>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Concerns */}
+          <SectionTitle>Concerns</SectionTitle>
+          <Box sx={{ p: 1, mb: 3, borderLeft: '3px solid #800000' }}>
+            <Typography>{formData.concerns || 'No concerns provided'}</Typography>
+          </Box>
+
+          {/* Solutions */}
+          <SectionTitle>Solutions</SectionTitle>
+          <Box sx={{ p: 1, mb: 3, borderLeft: '3px solid #800000' }}>
+            <Typography>{formData.solutions || 'No solutions provided'}</Typography>
+          </Box>
+
+          {/* Recommendations */}
+          <SectionTitle>Recommendations</SectionTitle>
+          <Box sx={{ p: 1, mb: 3, borderLeft: '3px solid #800000' }}>
+            <Typography>{formData.recommendations || 'No recommendations provided'}</Typography>
+          </Box>
+
+          {/* Overall Evaluation */}
+          <SectionTitle>Overall Evaluation</SectionTitle>
+          <Box sx={{ p: 1, mb: 3, borderLeft: '3px solid #800000' }}>
+            <Typography>{formData.evaluation || 'No evaluation provided'}</Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+          <Button onClick={this.handleClosePreview} variant="outlined" color="inherit">
+            Back to Edit
+          </Button>
+          <Button 
+            onClick={this.handleConfirmSubmit} 
+            variant="contained" 
+            disabled={this.state.isSubmitting}
+            sx={{ 
+              bgcolor: '#800000', 
+              color: '#FFD700',
+              '&:hover': { bgcolor: '#600000' } 
+            }}
+          >
+            {this.state.isSubmitting ? 'Submitting...' : 'Confirm & Submit'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
   }
 
   render() {
@@ -439,10 +542,13 @@ class ConcernsSolutions extends Component {
               onClick={this.handleSubmit}
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
+              {isSubmitting ? 'Submitting...' : 'Preview & Submit'}
             </SubmitButton>
           </Box>
         </SurveySection>
+
+        {/* Render the preview dialog */}
+        {this.renderPreviewDialog()}
 
         <Snackbar
           open={snackbar.open}

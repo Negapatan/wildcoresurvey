@@ -12,7 +12,13 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+  Divider
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { submitCompanyEvaluation } from '../services/surveyService';
@@ -75,6 +81,7 @@ class CompanyEvaluation extends Component {
       overallExperienceRatings: {},
       isSubmitting: false,
       isSubmitted: false,
+      previewOpen: false, // New state for preview dialog
       evaluationMode: this.props.evaluationMode || 'FINAL', // Default to FINAL evaluation if not provided
       snackbar: {
         open: false,
@@ -501,6 +508,15 @@ class CompanyEvaluation extends Component {
       return;
     }
     
+    // Open the preview dialog instead of immediately submitting
+    this.setState({ previewOpen: true });
+  };
+  
+  // New method to handle the actual submission after preview confirmation
+  handleConfirmSubmit = async () => {
+    // Close the preview dialog
+    this.setState({ previewOpen: false });
+    
     // Add validation for student info including access key check
     const isValidStudentInfo = await this.validateStudentId();
     if (!isValidStudentInfo) {
@@ -555,6 +571,11 @@ class CompanyEvaluation extends Component {
         isSubmitting: false
       });
     }
+  };
+  
+  // New method to close the preview dialog
+  handleClosePreview = () => {
+    this.setState({ previewOpen: false });
   };
 
   handleFormChange = (event) => {
@@ -914,6 +935,163 @@ class CompanyEvaluation extends Component {
     );
   }
 
+  // New method to render the preview dialog
+  renderPreviewDialog() {
+    const { 
+      previewOpen, 
+      formData, 
+      workEnvironmentRatings, 
+      supportGuidanceRatings,
+      workPerformanceRatings,
+      overallExperienceRatings,
+      isSubmitting,
+      evaluationMode
+    } = this.state;
+    
+    // Calculate average ratings
+    const workEnvironmentAvg = this.getAverageRating(workEnvironmentRatings);
+    const supportGuidanceAvg = this.getAverageRating(supportGuidanceRatings);
+    const workPerformanceAvg = this.getAverageRating(workPerformanceRatings);
+    const overallExperienceAvg = this.getAverageRating(overallExperienceRatings);
+    
+    // Calculate overall average rating
+    const totalRatingCount = Object.keys(workEnvironmentRatings).length + 
+                            Object.keys(supportGuidanceRatings).length +
+                            Object.keys(workPerformanceRatings).length +
+                            Object.keys(overallExperienceRatings).length;
+    
+    const totalRatingSum = this.getSumOfRatings(workEnvironmentRatings) +
+                          this.getSumOfRatings(supportGuidanceRatings) +
+                          this.getSumOfRatings(workPerformanceRatings) +
+                          this.getSumOfRatings(overallExperienceRatings);
+    
+    const overallAvg = totalRatingCount > 0 ? (totalRatingSum / totalRatingCount).toFixed(2) : 'N/A';
+    
+    return (
+      <Dialog 
+        open={previewOpen} 
+        onClose={this.handleClosePreview}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ bgcolor: '#800000', color: '#FFD700', textAlign: 'center' }}>
+          Preview Company {evaluationMode.toLowerCase()} Evaluation
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2 }}>
+            Please review your evaluation details before final submission:
+          </Typography>
+          
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>Student Information</Typography>
+              <Box sx={{ p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography><strong>Name:</strong> {formData.studentName}</Typography>
+                <Typography><strong>ID:</strong> {formData.studentId}</Typography>
+                <Typography><strong>College:</strong> {formData.college}</Typography>
+                <Typography><strong>Program:</strong> {formData.program}</Typography>
+                <Typography><strong>School Year:</strong> {formData.schoolYear}</Typography>
+                <Typography><strong>Semester:</strong> {formData.semester}</Typography>
+                <Typography><strong>Section:</strong> {formData.section}</Typography>
+              </Box>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>Company Information</Typography>
+              <Box sx={{ p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography><strong>Company:</strong> {formData.companyName}</Typography>
+                <Typography><strong>Evaluation Type:</strong> {evaluationMode}</Typography>
+              </Box>
+              
+              <Box sx={{ mt: 3, p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography variant="subtitle2" gutterBottom>Average Ratings</Typography>
+                <Typography><strong>Work Environment:</strong> {workEnvironmentAvg.toFixed(2)}/5</Typography>
+                <Typography><strong>Support & Guidance:</strong> {supportGuidanceAvg.toFixed(2)}/5</Typography>
+                <Typography><strong>Work Performance:</strong> {workPerformanceAvg.toFixed(2)}/5</Typography>
+                <Typography><strong>Overall Experience:</strong> {overallExperienceAvg.toFixed(2)}/5</Typography>
+                <Typography sx={{ fontWeight: 'bold', mt: 1 }}><strong>Overall Rating:</strong> {overallAvg}/5</Typography>
+              </Box>
+            </Grid>
+          </Grid>
+          
+          <Divider sx={{ my: 2 }} />
+          
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>Work Environment Ratings</Typography>
+              {this.workEnvironmentItems.map((item, index) => (
+                <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2" sx={{ flexGrow: 1, pr: 2 }}>{item}:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', minWidth: '40px', textAlign: 'right' }}>
+                    {workEnvironmentRatings[item] || 'N/A'}/5
+                  </Typography>
+                </Box>
+              ))}
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>Support & Guidance Ratings</Typography>
+              {this.supportGuidanceItems.map((item, index) => (
+                <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2" sx={{ flexGrow: 1, pr: 2 }}>{item}:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', minWidth: '40px', textAlign: 'right' }}>
+                    {supportGuidanceRatings[item] || 'N/A'}/5
+                  </Typography>
+                </Box>
+              ))}
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>Work Performance Ratings</Typography>
+              {this.workPerformanceItems.map((item, index) => (
+                <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2" sx={{ flexGrow: 1, pr: 2 }}>{item}:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', minWidth: '40px', textAlign: 'right' }}>
+                    {workPerformanceRatings[item] || 'N/A'}/5
+                  </Typography>
+                </Box>
+              ))}
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" gutterBottom>Overall Experience Ratings</Typography>
+              {this.overallExperienceItems.map((item, index) => (
+                <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2" sx={{ flexGrow: 1, pr: 2 }}>{item}:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', minWidth: '40px', textAlign: 'right' }}>
+                    {overallExperienceRatings[item] || 'N/A'}/5
+                  </Typography>
+                </Box>
+              ))}
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+          <Button onClick={this.handleClosePreview} variant="outlined" color="inherit">
+            Back to Edit
+          </Button>
+          <Button 
+            onClick={this.handleConfirmSubmit} 
+            variant="contained" 
+            disabled={isSubmitting}
+            sx={{ 
+              bgcolor: '#800000', 
+              color: '#FFD700',
+              '&:hover': { bgcolor: '#600000' } 
+            }}
+          >
+            {isSubmitting ? 'Submitting...' : 'Confirm & Submit'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
+  
+  // Helper method to calculate the sum of ratings
+  getSumOfRatings = (ratings) => {
+    return Object.values(ratings).reduce((sum, val) => sum + (val || 0), 0);
+  };
+
   render() {
     const { 
       SubmitButton 
@@ -983,9 +1161,12 @@ class CompanyEvaluation extends Component {
             onClick={this.handleSubmit}
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Company Evaluation'}
+            {isSubmitting ? 'Submitting...' : 'Preview & Submit'}
           </SubmitButton>
         </Box>
+
+        {/* Add the preview dialog */}
+        {this.renderPreviewDialog()}
 
         <Snackbar
           open={snackbar.open}

@@ -16,7 +16,12 @@ import {
   Autocomplete,
   Checkbox,
   FormGroup,
-  FormLabel
+  FormLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ThankYouPage from './ThankYouPage';
@@ -161,6 +166,7 @@ class OJTAdviserEval extends Component {
       },
       isSubmitting: false,
       isSubmitted: false,
+      previewOpen: false,
       snackbar: {
         open: false,
         message: '',
@@ -305,14 +311,24 @@ class OJTAdviserEval extends Component {
 
   handleSubmit = async (e) => {
     e.preventDefault();
-    this.setState({ isSubmitting: true });
+
+    if (!this.validateForm()) {
+      return;
+    }
+
+    // Open the preview dialog instead of immediately submitting
+    this.setState({ previewOpen: true });
+  }
+  
+  // New method to handle actual submission after preview confirmation
+  handleConfirmSubmit = async () => {
+    // Close the preview dialog
+    this.setState({ 
+      previewOpen: false,
+      isSubmitting: true 
+    });
 
     try {
-      if (!this.validateForm()) {
-        this.setState({ isSubmitting: false });
-        return;
-      }
-
       // Create a copy of form data to ensure it's not modified unexpectedly
       const submissionData = { ...this.formData };
       
@@ -329,6 +345,148 @@ class OJTAdviserEval extends Component {
     } finally {
       this.setState({ isSubmitting: false });
     }
+  }
+  
+  // New method to close the preview dialog
+  handleClosePreview = () => {
+    this.setState({ previewOpen: false });
+  }
+  
+  // New method to render the preview dialog
+  renderPreviewDialog() {
+    const { SectionTitle } = StyledComponents;
+    const { previewOpen, formData, isSubmitting } = this.state;
+    
+    // Helper function to format checkbox values for display
+    const formatCheckboxStatus = (value) => (value ? '✓ Yes' : '✗ No');
+    
+    return (
+      <Dialog 
+        open={previewOpen} 
+        onClose={this.handleClosePreview}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ bgcolor: '#800000', color: '#FFD700', textAlign: 'center' }}>
+          Preview Evaluation
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2 }}>
+            Please review your evaluation details before final submission:
+          </Typography>
+          
+          {/* Company Profile */}
+          <SectionTitle>Company Profile</SectionTitle>
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography><strong>Company Name:</strong> {formData.companyName}</Typography>
+                <Typography><strong>Address:</strong> {formData.companyAddress}</Typography>
+                <Typography><strong>Department:</strong> {formData.departmentAssigned || 'N/A'}</Typography>
+                <Typography><strong>Program:</strong> {formData.program}</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography><strong>Supervisor:</strong> {formData.supervisorInCharge}</Typography>
+                <Typography><strong>Contact:</strong> {formData.supervisorContact || 'N/A'}</Typography>
+                <Typography><strong>Email:</strong> {formData.supervisorEmail || 'N/A'}</Typography>
+                <Typography><strong>Evaluation Period:</strong> {formData.evaluationPeriod}</Typography>
+              </Box>
+            </Grid>
+          </Grid>
+          
+          <Divider sx={{ my: 2 }} />
+          
+          {/* Priority Level */}
+          <SectionTitle>Priority Level</SectionTitle>
+          <Box sx={{ p: 1, mb: 3, borderLeft: '3px solid #800000' }}>
+            <Typography><strong>Priority Level:</strong> {formData.priorityLevel}</Typography>
+          </Box>
+          
+          {/* Safety */}
+          <SectionTitle>Workplace Safety</SectionTitle>
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography><strong>Safety Protocols:</strong> {formatCheckboxStatus(formData.safetyProtocols)}</Typography>
+                <Typography><strong>Safety Orientation:</strong> {formatCheckboxStatus(formData.safetyOrientation)}</Typography>
+                <Typography><strong>Emergency Plans:</strong> {formatCheckboxStatus(formData.emergencyPlans)}</Typography>
+                <Typography><strong>No Safety Concerns:</strong> {formatCheckboxStatus(formData.noSafetyConcerns)}</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography><strong>Safety Comments:</strong></Typography>
+                <Typography sx={{ fontStyle: 'italic', color: '#555' }}>
+                  {formData.safetyComments || 'No comments provided'}
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+          
+          {/* Learning Opportunities */}
+          <SectionTitle>Learning Opportunities</SectionTitle>
+          <Box sx={{ p: 1, mb: 3, borderLeft: '3px solid #800000' }}>
+            <Typography><strong>Relevant Tasks:</strong> {formatCheckboxStatus(formData.relevantTasks)}</Typography>
+            <Typography><strong>Supervision Evident:</strong> {formatCheckboxStatus(formData.supervisionEvident)}</Typography>
+            <Typography><strong>Industry Exposure:</strong> {formatCheckboxStatus(formData.industryExposure)}</Typography>
+            <Typography><strong>Knowledge Application:</strong> {formatCheckboxStatus(formData.knowledgeApplication)}</Typography>
+          </Box>
+          
+          {/* Work Environment */}
+          <SectionTitle>Work Environment</SectionTitle>
+          <Box sx={{ p: 1, mb: 3, borderLeft: '3px solid #800000' }}>
+            <Typography><strong>Professional Culture:</strong> {formatCheckboxStatus(formData.professionalCulture)}</Typography>
+            <Typography><strong>Open Communication:</strong> {formatCheckboxStatus(formData.openCommunication)}</Typography>
+            <Typography><strong>Encourages Initiative:</strong> {formatCheckboxStatus(formData.encouragesInitiative)}</Typography>
+            <Typography><strong>No Harassment:</strong> {formatCheckboxStatus(formData.noHarassment)}</Typography>
+          </Box>
+          
+          {/* Compliance */}
+          <SectionTitle>Compliance with MOA/Expectations</SectionTitle>
+          <Box sx={{ p: 1, mb: 3, borderLeft: '3px solid #800000' }}>
+            <Typography><strong>Provided Hours:</strong> {formatCheckboxStatus(formData.providedHours)}</Typography>
+            <Typography><strong>Submitted Forms:</strong> {formatCheckboxStatus(formData.submittedForms)}</Typography>
+            <Typography><strong>Attended Orientation:</strong> {formatCheckboxStatus(formData.attendedOrientation)}</Typography>
+            <Typography><strong>Open to Collaboration:</strong> {formatCheckboxStatus(formData.openToCollaboration)}</Typography>
+          </Box>
+          
+          {/* Signatures */}
+          <SectionTitle>Signatures</SectionTitle>
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography><strong>CIT-University Advisor:</strong> {formData.advisorName || 'N/A'}</Typography>
+                <Typography><strong>Meeting Date:</strong> {formData.meetingDate || 'N/A'}</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 1, borderLeft: '3px solid #800000' }}>
+                <Typography><strong>Host Supervisor:</strong> {formData.supervisorName || 'N/A'}</Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+          <Button onClick={this.handleClosePreview} variant="outlined" color="inherit">
+            Back to Edit
+          </Button>
+          <Button 
+            onClick={this.handleConfirmSubmit} 
+            variant="contained" 
+            disabled={isSubmitting}
+            sx={{ 
+              bgcolor: '#800000', 
+              color: '#FFD700',
+              '&:hover': { bgcolor: '#600000' } 
+            }}
+          >
+            {isSubmitting ? 'Submitting...' : 'Confirm & Submit'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
   }
 
   renderTextField(name, label, multiline = false, type = 'text', helperText = '', required = false) {
@@ -684,9 +842,12 @@ class OJTAdviserEval extends Component {
             onClick={this.handleSubmit}
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Evaluation'}
+            {isSubmitting ? 'Submitting...' : 'Preview & Submit'}
           </SubmitButton>
         </Box>
+
+        {/* Render the preview dialog */}
+        {this.renderPreviewDialog()}
 
         <Snackbar
           open={snackbar.open}
