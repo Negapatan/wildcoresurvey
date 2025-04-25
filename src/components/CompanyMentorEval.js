@@ -214,7 +214,7 @@ class StudentSurvey extends Component {
         if (studentInfo.program) formDataUpdate.program = studentInfo.program;
         
         // Academic information
-        if (studentInfo.semester) formDataUpdate.semester = studentInfo.semester;
+        if (studentInfo.semester) formDataUpdate.semester = this.standardizeSemester(studentInfo.semester);
         if (studentInfo.schoolYear) formDataUpdate.schoolYear = studentInfo.schoolYear;
         
         // If evaluationMode is provided, use it
@@ -263,6 +263,27 @@ class StudentSurvey extends Component {
         console.log(`Successfully pre-filled form for student ID: ${studentInfo.studentId}`);
       }
     }
+  }
+
+  // Standardize semester values to consistent format
+  standardizeSemester(semester) {
+    if (!semester) return '';
+    
+    // Convert to lowercase for case-insensitive comparison
+    const normalizedSemester = semester.toLowerCase();
+    
+    // Convert different formats to standard format
+    if (normalizedSemester === 'first' || normalizedSemester === '1st') {
+      return '1st';
+    } else if (normalizedSemester === 'second' || normalizedSemester === '2nd') {
+      return '2nd';
+    } else if (normalizedSemester === 'summer') {
+      return 'Summer';
+    }
+    
+    // If no match found, return the original value
+    console.log(`Using original semester value: ${semester}`);
+    return semester;
   }
 
   fetchCompanies = async () => {

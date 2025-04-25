@@ -184,7 +184,7 @@ class CompanyEvaluation extends Component {
       // Prioritize the semester field - make sure it's properly set
       if (studentInfo.semester) {
         console.log(`Setting semester to: ${studentInfo.semester}`);
-        updatedFormData.semester = studentInfo.semester;
+        updatedFormData.semester = this.standardizeSemester(studentInfo.semester);
       }
 
       // Store the access key that was used - check the specific key fields
@@ -219,6 +219,27 @@ class CompanyEvaluation extends Component {
         console.log('No changes to form data needed');
       }
     }
+  }
+
+  // Standardize semester values to consistent format
+  standardizeSemester(semester) {
+    if (!semester) return '';
+    
+    // Convert to lowercase for case-insensitive comparison
+    const normalizedSemester = semester.toLowerCase();
+    
+    // Convert different formats to standard format
+    if (normalizedSemester === 'first' || normalizedSemester === '1st') {
+      return '1st';
+    } else if (normalizedSemester === 'second' || normalizedSemester === '2nd') {
+      return '2nd';
+    } else if (normalizedSemester === 'summer') {
+      return 'Summer';
+    }
+    
+    // If no match found, return the original value
+    console.log(`Using original semester value: ${semester}`);
+    return semester;
   }
 
   // Getters and Setters
