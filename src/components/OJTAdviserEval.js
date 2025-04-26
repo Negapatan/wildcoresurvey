@@ -671,8 +671,8 @@ class OJTAdviserEval extends Component {
               px: 2
             }}
           >
-            This form is intended for OJT Advisers to evaluate partner companies during site visits 
-            or virtual meetings. Please ensure that you document all important details for future reference.
+            This form is intended for OJT Advisers to evaluate partner companies during site visits. 
+            Please ensure that you document all important details for future reference.
           </Typography>
 
           <FormDivider />

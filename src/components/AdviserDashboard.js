@@ -221,7 +221,7 @@ class AdviserDashboard extends Component {
                   </Typography>
                   
                   <Typography variant="body2" color="text.secondary">
-                    Use this form to record details from your virtual meetings with company representatives.
+                    Use this form to record details from your Visitational meetings with company representatives.
                   </Typography>
                 </CardContent>
                 <CardActions sx={{ p: 2 }}>
