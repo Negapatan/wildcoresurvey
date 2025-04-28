@@ -18,7 +18,7 @@ import BusinessIcon from '@mui/icons-material/Business';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { auth, db, signOutUser, trySignIn } from '../firebase-config';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import CompanyMentorEval from './CompanyMentorEval';
 
 const StyledComponents = {
@@ -74,6 +74,7 @@ class CompanyAccess extends Component {
       companyData: null,
       studentInfo: null,
       evaluationMode: 'FINAL', // Default to FINAL evaluation
+      accessLocked: false, // Flag to indicate if company access is locked
       snackbar: {
         open: false,
         message: '',
@@ -82,12 +83,42 @@ class CompanyAccess extends Component {
     };
   }
 
+  componentDidMount() {
+    // Check if company access is locked
+    this.checkAccessLock();
+  }
+
   componentWillUnmount() {
     // Sign out when component is unmounted to clean up auth state
     if (this.state.isAuthenticated) {
       signOutUser();
     }
   }
+
+  checkAccessLock = async () => {
+    try {
+      // Get survey access settings
+      const settingsDoc = await getDoc(doc(db, 'settings', 'surveyAccess'));
+      
+      if (settingsDoc.exists()) {
+        const settings = settingsDoc.data();
+        
+        if (settings.lockCompanyAccess) {
+          this.setState({ 
+            accessLocked: true,
+            snackbar: {
+              open: true,
+              message: 'Company survey access is currently locked by administrators. Please try again later.',
+              severity: 'error'
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking access lock status:', error);
+      // Continue without locking access in case of error
+    }
+  };
 
   handleAccessKeyChange = (e) => {
     this.setState({ accessKey: e.target.value });
@@ -295,29 +326,30 @@ class CompanyAccess extends Component {
   }
 
   handleSubmit = async () => {
-    const { accessKey } = this.state;
+    const { accessKey, evaluationMode, accessLocked } = this.state;
     
-    if (!accessKey) {
+    // Check if access is locked before proceeding
+    if (accessLocked) {
       this.setState({
         snackbar: {
           open: true,
-          message: 'Please enter the access key',
+          message: 'Company survey access is currently locked by administrators. Please try again later.',
           severity: 'error'
         }
       });
       return;
     }
-
+    
+    // Set submitting state
     this.setState({ isSubmitting: true });
-
+    
     try {
-      // Validate the access key against the database
+      // Validate the access key
       const result = await this.validateAccessKey(accessKey);
       
       if (result.valid) {
         if (result.alreadySubmitted) {
           // Special case for already submitted evaluations
-          const { evaluationMode } = this.state;
           const periodText = evaluationMode.toLowerCase() === 'midterm' ? 'midterm' : 'final';
           
           this.setState({

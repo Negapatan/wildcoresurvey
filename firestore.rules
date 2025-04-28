@@ -977,5 +977,12 @@ service cloud.firestore {
                        request.path.segments[0] == 'profile') &&
                       request.auth.uid != resource.id;
     }
+
+    // Settings Collection - Admin only
+    match /settings/{settingId} {
+      // Only administrators can read or write to settings
+      allow read: if true;  // Allow reading by all (settings checked client-side)
+      allow write: if isAdmin();  // Only admins can modify settings
+    }
   }
 } 

@@ -10,14 +10,17 @@ import {
   CardActions,
   Divider,
   CircularProgress,
-  Backdrop
+  Backdrop,
+  IconButton
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import WarningIcon from '@mui/icons-material/Warning';
 import LogoutIcon from '@mui/icons-material/Logout';
+import SettingsIcon from '@mui/icons-material/Settings';
 import OJTAdviserEval from './OJTAdviserEval';
 import ConcernsSolutionsAccess from './ConcernsSolutionsAccess';
+import AdminSettings from './AdminSettings';
 import { signOutUser } from '../firebase-config';
 
 const StyledComponents = {
@@ -142,17 +145,41 @@ class AdviserDashboard extends Component {
         justifyContent: 'center',
       }}>
         <DashboardContainer>
-          <Typography 
-            variant="h4" 
-            sx={{ 
-              color: '#800000', 
-              mb: 1, 
-              textAlign: 'center',
-              fontWeight: 600
-            }}
-          >
-            OJT Adviser Dashboard
-          </Typography>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            mb: 2
+          }}>
+            <Typography 
+              variant="h4" 
+              sx={{ 
+                color: '#800000', 
+                fontWeight: 600
+              }}
+            >
+              OJT Adviser Dashboard
+            </Typography>
+            
+            {/* Settings icon for admin users only */}
+            {userRole === 'admin' && (
+              <IconButton 
+                onClick={() => this.switchView('settings')}
+                sx={{ 
+                  color: '#800000',
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    backgroundColor: 'rgba(128, 0, 0, 0.04)',
+                    transform: 'rotate(30deg)',
+                  }
+                }}
+                aria-label="Admin Settings"
+                title="Admin Settings"
+              >
+                <SettingsIcon fontSize="large" />
+              </IconButton>
+            )}
+          </Box>
           
           <Typography 
             variant="h6" 
@@ -317,6 +344,38 @@ class AdviserDashboard extends Component {
           userRole={userRole} 
           onBack={() => this.switchView('dashboard')} 
         />;
+      case 'settings':
+        // Only allow admin users to access settings
+        if (userRole === 'admin') {
+          return (
+            <Box sx={{ 
+              maxWidth: 900, 
+              mx: 'auto', 
+              p: { xs: 2, sm: 3 },
+              mt: 2
+            }}>
+              <AdminSettings />
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                <Button 
+                  variant="outlined"
+                  startIcon={<LogoutIcon />}
+                  onClick={() => this.switchView('dashboard')}
+                  sx={{ 
+                    color: '#800000',
+                    borderColor: '#800000',
+                    '&:hover': {
+                      backgroundColor: 'rgba(128, 0, 0, 0.04)',
+                      borderColor: '#600000',
+                    },
+                  }}
+                >
+                  Back to Dashboard
+                </Button>
+              </Box>
+            </Box>
+          );
+        }
+        return this.renderDashboard();
       default:
         return this.renderDashboard();
     }

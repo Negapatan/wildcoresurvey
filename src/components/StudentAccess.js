@@ -17,7 +17,7 @@ import SchoolIcon from '@mui/icons-material/School';
 import SecurityIcon from '@mui/icons-material/Security';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import { collection, query, getDocs, where } from 'firebase/firestore';
+import { collection, query, getDocs, where, getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase-config';
 import StudentsEval from './StudentsEval';
 
@@ -73,6 +73,7 @@ class StudentAccess extends Component {
       isAuthenticated: false,
       studentData: null,
       evaluationMode: 'FINAL', // Default to FINAL evaluation
+      accessLocked: false, // Flag to indicate if student access is locked
       snackbar: {
         open: false,
         message: '',
@@ -82,8 +83,34 @@ class StudentAccess extends Component {
   }
 
   componentDidMount() {
-    // No initialization needed
+    // Check if student access is locked
+    this.checkAccessLock();
   }
+
+  checkAccessLock = async () => {
+    try {
+      // Get survey access settings
+      const settingsDoc = await getDoc(doc(db, 'settings', 'surveyAccess'));
+      
+      if (settingsDoc.exists()) {
+        const settings = settingsDoc.data();
+        
+        if (settings.lockStudentAccess) {
+          this.setState({ 
+            accessLocked: true,
+            snackbar: {
+              open: true,
+              message: 'Student survey access is currently locked by administrators. Please try again later.',
+              severity: 'error'
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking access lock status:', error);
+      // Continue without locking access in case of error
+    }
+  };
 
   componentWillUnmount() {
     // No cleanup needed
@@ -278,28 +305,30 @@ class StudentAccess extends Component {
   };
 
   handleSubmit = async () => {
-    const { accessKey } = this.state;
+    const { accessKey, evaluationMode, accessLocked } = this.state;
     
-    if (!accessKey || accessKey.trim() === '') {
+    // Check if access is locked before proceeding
+    if (accessLocked) {
       this.setState({
         snackbar: {
           open: true,
-          message: 'Please enter an access key',
+          message: 'Student survey access is currently locked by administrators. Please try again later.',
           severity: 'error'
         }
       });
       return;
     }
-
+    
+    // Set submitting state
     this.setState({ isSubmitting: true });
-
+    
     try {
+      // Validate the access key
       const result = await this.validateAccessKey(accessKey);
       
       if (result.valid) {
         if (result.alreadySubmitted) {
           // Handle the case where the evaluation has already been submitted
-          const { evaluationMode } = this.state;
           const periodText = evaluationMode.toLowerCase() === 'midterm' ? 'midterm' : 'final';
           
           this.setState({
