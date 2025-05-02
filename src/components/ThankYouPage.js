@@ -135,6 +135,11 @@ class ThankYouPage extends Component {
         title: "Thank You for Sharing Your Experience!",
         message: "Your honest feedback about your internship experience helps us ensure quality partnerships with companies and better opportunities for future students.",
         subMessage: "Your insights will help us enhance the OJT program and create more meaningful internship experiences."
+      },
+      adviser: {
+        title: "Feedback Submitted Successfully!",
+        message: "Your observations, concerns, and recommendations for the student have been recorded. This information will help guide student improvement.",
+        subMessage: "Thank you for your ongoing support in developing our students' professional skills."
       }
     };
   }
@@ -144,7 +149,12 @@ class ThankYouPage extends Component {
   }
 
   get message() {
-    return this.messages[this.surveyType];
+    // Provide a fallback message if the surveyType doesn't exist in the messages object
+    return this.messages[this.surveyType] || this.messages.evaluation || {
+      title: "Thank You for Your Submission!",
+      message: "Your feedback is important to us and will help improve our internship programs.",
+      subMessage: "We appreciate your time and thoughtful responses."
+    };
   }
 
   get evaluationMode() {
@@ -257,7 +267,7 @@ class ThankYouPage extends Component {
 
 // PropTypes for better type checking
 ThankYouPage.propTypes = {
-  surveyType: PropTypes.oneOf(['student', 'company', 'evaluation']).isRequired,
+  surveyType: PropTypes.oneOf(['student', 'company', 'evaluation', 'adviser']).isRequired,
   evaluationMode: PropTypes.string, // Add prop type for evaluationMode
   onReturn: PropTypes.func,
   onBackToAccess: PropTypes.func

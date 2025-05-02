@@ -367,7 +367,8 @@ class ConcernsSolutions extends Component {
 
     if (isSubmitted) {
       return <ThankYouPage 
-        surveyType="evaluation" 
+        surveyType="adviser"
+        userRole="adviser"
         onReturn={() => window.location.href = '/'} 
       />;
     }

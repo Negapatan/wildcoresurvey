@@ -171,6 +171,13 @@ class CompanyAccess extends Component {
           studentInfo = { ...studentData, id: studentDoc.id, studentName, studentId };
           
           console.log(`Found student ${studentName} (ID: ${studentId}) associated with this access key`);
+          
+          // Check if student has a valid startDate
+          if (!studentData.startDate || studentData.startDate.trim() === '') {
+            console.log(`Student ${studentName} does not have a start date defined`);
+            return { valid: false, error: 'This student\'s internship start date has not been set. Please contact the coordinator to update the student information before proceeding with the evaluation.' };
+          }
+          
         } else {
           // Try with legacy accessKey field
           const legacyQuery = query(studentDataRef, where('accessKey', '==', accessKey));
@@ -184,6 +191,12 @@ class CompanyAccess extends Component {
             studentInfo = { ...studentData, id: studentDoc.id, studentName, studentId };
             
             console.log(`Found student ${studentName} (ID: ${studentId}) associated with this access key (legacy field)`);
+            
+            // Check if student has a valid startDate
+            if (!studentData.startDate || studentData.startDate.trim() === '') {
+              console.log(`Student ${studentName} does not have a start date defined`);
+              return { valid: false, error: 'This student\'s internship start date has not been set. Please contact the coordinator to update the student information before proceeding with the evaluation.' };
+            }
           }
         }
         

@@ -136,6 +136,12 @@ class ConcernsSolutionsAccess extends Component {
           };
           
           console.log(`Found student ${studentInfo.studentName} associated with this access key using ${keyField}`);
+          
+          // Check if student has a valid startDate
+          if (!studentData.startDate || studentData.startDate.trim() === '') {
+            console.log(`Student ${studentInfo.studentName} does not have a start date defined`);
+            return { valid: false, error: 'This student\'s internship start date has not been set. Please contact the coordinator to update the student information before proceeding with concerns and solutions.' };
+          }
         } else {
           // Fallback to check legacy accessKey field
           const legacyQuery = query(studentDataRef, where('accessKey', '==', cleanKey));
@@ -160,6 +166,12 @@ class ConcernsSolutionsAccess extends Component {
             };
             
             console.log(`Found student ${studentInfo.studentName} associated with this access key using legacy accessKey field`);
+            
+            // Check if student has a valid startDate
+            if (!studentData.startDate || studentData.startDate.trim() === '') {
+              console.log(`Student ${studentInfo.studentName} does not have a start date defined`);
+              return { valid: false, error: 'This student\'s internship start date has not been set. Please contact the coordinator to update the student information before proceeding with concerns and solutions.' };
+            }
           }
         }
         
